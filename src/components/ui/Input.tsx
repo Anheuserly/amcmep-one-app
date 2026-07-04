@@ -1,7 +1,8 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps
+  extends React.InputHTMLAttributes<HTMLInputElement> {
   error?: string;
   label?: string;
   icon?: React.ReactNode;
@@ -12,22 +13,22 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="w-full">
         {label && (
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-dark mb-1.5">
             {label}
           </label>
         )}
         <div className="relative">
           {icon && (
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
               {icon}
             </div>
           )}
           <input
             type={type}
             className={cn(
-              "flex h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50",
-              icon && "pl-10",
-              error && "border-danger focus:ring-danger",
+              "flex h-11 w-full rounded-[14px] border-0 bg-white px-4 py-2.5 text-sm text-dark placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50 shadow-sm",
+              icon && "pl-11",
+              error && "ring-2 ring-danger/30",
               className
             )}
             ref={ref}
@@ -35,7 +36,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           />
         </div>
         {error && (
-          <p className="mt-1 text-sm text-danger">{error}</p>
+          <p className="mt-1.5 text-sm text-danger">{error}</p>
         )}
       </div>
     );

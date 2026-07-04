@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -8,32 +8,21 @@ import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Input } from "@/components/ui/Input";
 import { EmptyState } from "@/components/ui/EmptyState";
+import {
+  fetchAssignments,
+  fetchBusinessMemberships,
+  fetchBusinesses,
+  fetchPartnerProfile,
+  toBusiness,
+  toPartnerAssignment,
+  toPartnerProfile,
+  toWorkspaceMembership,
+} from "@/lib/services/appwriteServices";
 import toast from "react-hot-toast";
 import {
-  Briefcase, Building2, Users, CheckCircle, XCircle, Star, MapPin, Wrench, TrendingUp, Plus, Trash2, Edit3, Search, Filter, ArrowRight, Award, IndianRupee, Clock, UserCheck
+  Briefcase, Building2, Users, CheckCircle, Star, MapPin, Wrench, TrendingUp, Plus, Trash2, Edit3, ArrowRight, Award, IndianRupee, X
 } from "lucide-react";
 import type { Business, PartnerProfile, PartnerAssignment, WorkspaceMembership } from "@/types";
-
-const mockBusinesses: Business[] = [
-  { $id: "biz1", name: "Shree Ganesh Enterprises", slug: "shree-ganesh", description: "Complete MEP solutions for commercial and industrial clients", address: "45, 2nd Main, Industrial Area", city: "Bangalore", state: "Karnataka", pincode: "560058", phone: "080-12345678", email: "contact@sge.in", website: "https://sge.in", logo: "", categories: ["HVAC", "Fire Safety", "Electrical"], servicesEnabled: true, vendorEnabled: false, status: "active", ownerId: "user1", rating: 4.7, reviewCount: 124, createdAt: "2020-01-01" },
-];
-
-const mockMemberships: WorkspaceMembership[] = [
-  { $id: "m1", businessId: "biz1", userId: "user1", role: "owner", permissions: ["manage_business", "manage_members", "manage_requests", "receive_service_work"], joinedAt: "2020-01-01" },
-  { $id: "m2", businessId: "biz1", userId: "user2", role: "partner", permissions: ["receive_service_work", "business_chat"], joinedAt: "2023-03-15" },
-  { $id: "m3", businessId: "biz1", userId: "user3", role: "partner", permissions: ["receive_service_work", "business_chat"], joinedAt: "2023-06-20" },
-  { $id: "m4", businessId: "biz1", userId: "user4", role: "staff", permissions: ["business_chat", "manage_requests"], joinedAt: "2024-01-10" },
-];
-
-const mockPartnerProfile: PartnerProfile = {
-  $id: "p1", userId: "user2", skills: ["HVAC", "Electrical", "Plumbing"], serviceAreas: ["Bangalore", "Whitefield", "Electronic City"], partnerType: "service", status: "active", earnings: 245000, rating: 4.8, completedJobs: 142, createdAt: "2022-01-01"
-};
-
-const mockAssignments: PartnerAssignment[] = [
-  { $id: "a1", partnerId: "user2", requestId: "req1", businessId: "biz1", status: "in_progress", earnings: 5000, assignedAt: "2024-03-01", completedAt: undefined },
-  { $id: "a2", partnerId: "user2", requestId: "req2", businessId: "biz1", status: "completed", earnings: 3500, assignedAt: "2024-02-15", completedAt: "2024-02-18" },
-  { $id: "a3", partnerId: "user2", requestId: "req3", businessId: "biz1", status: "completed", earnings: 8000, assignedAt: "2024-01-20", completedAt: "2024-01-25" },
-];
 
 const roleBadgeColors = { owner: "bg-red-100 text-red-700", admin: "bg-orange-100 text-orange-700", partner: "bg-blue-100 text-blue-700", staff: "bg-gray-100 text-gray-700" };
 const assignmentStatusColors = { assigned: "bg-yellow-100 text-yellow-700", in_progress: "bg-blue-100 text-blue-700", completed: "bg-green-100 text-green-700", cancelled: "bg-red-100 text-red-700" };
@@ -42,12 +31,48 @@ export default function WorkspacePage() {
   const { activeRole, profile } = useAuth();
   const isAdmin = activeRole === "administrator";
   const isPartner = activeRole === "partner";
-  const [business] = useState<Business | undefined>(mockBusinesses[0]);
-  const [memberships] = useState<WorkspaceMembership[]>(mockMemberships);
-  const [partnerProfile] = useState<PartnerProfile | undefined>(mockPartnerProfile);
-  const [assignments] = useState<PartnerAssignment[]>(mockAssignments);
+  const [business, setBusiness] = useState<Business | undefined>();
+  const [memberships, setMemberships] = useState<WorkspaceMembership[]>([]);
+  const [partnerProfile, setPartnerProfile] = useState<PartnerProfile | undefined>();
+  const [assignments, setAssignments] = useState<PartnerAssignment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [joinForm, setJoinForm] = useState({ skills: "", serviceAreas: "", partnerType: "service" as const });
+
+  useEffect(() => {
+    let alive = true;
+    async function loadWorkspace() {
+      if (!profile?.userId) {
+        setIsLoading(false);
+        return;
+      }
+      setIsLoading(true);
+      try {
+        const [businessDocs, partnerDoc, assignmentDocs] = await Promise.all([
+          fetchBusinesses({ ownerId: profile.userId, limit: 20 }),
+          fetchPartnerProfile(profile.userId),
+          fetchAssignments({ partnerId: profile.userId, limit: 100 }),
+        ]);
+        if (!alive) return;
+        const mappedBusiness = businessDocs.map(toBusiness)[0];
+        setBusiness(mappedBusiness);
+        setPartnerProfile(partnerDoc ? toPartnerProfile(partnerDoc) : undefined);
+        setAssignments(assignmentDocs.map(toPartnerAssignment));
+        if (mappedBusiness) {
+          const membershipDocs = await fetchBusinessMemberships(mappedBusiness.$id);
+          if (alive) setMemberships(membershipDocs.map(toWorkspaceMembership));
+        } else {
+          setMemberships([]);
+        }
+      } catch {
+        if (alive) toast.error("Unable to load workspace");
+      } finally {
+        if (alive) setIsLoading(false);
+      }
+    }
+    loadWorkspace();
+    return () => { alive = false; };
+  }, [profile?.userId]);
 
   const handleJoinProgram = () => {
     if (!joinForm.skills || !joinForm.serviceAreas) {
@@ -69,8 +94,16 @@ export default function WorkspacePage() {
         </p>
       </div>
 
+      {isLoading && (
+        <Card><CardContent className="p-8 text-center text-sm text-gray-500">Loading workspace...</CardContent></Card>
+      )}
+
       {/* ADMIN VIEW */}
-      {isAdmin && business && (
+      {!isLoading && isAdmin && !business && (
+        <EmptyState icon={<Building2 className="h-12 w-12" />} title="No business workspace found" description="Create or connect a business in the app to manage team, requests, and partner work here." />
+      )}
+
+      {!isLoading && isAdmin && business && (
         <>
           {/* Business Profile */}
           <Card>
@@ -89,7 +122,7 @@ export default function WorkspacePage() {
                   </div>
                   <div className="flex flex-wrap gap-2 mt-3">
                     {business.categories.map((cat) => (
-                      <Badge key={cat} variant="secondary">{cat}</Badge>
+                      <Badge key={cat} variant="default">{cat}</Badge>
                     ))}
                   </div>
                 </div>
@@ -151,31 +184,25 @@ export default function WorkspacePage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Briefcase className="h-5 w-5 text-brand-600" />
-                Incoming Work Requests
+                Work Assignments
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 pt-0">
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-sm">HVAC Annual Maintenance</p>
-                    <p className="text-xs text-gray-500">Tech Park, Bangalore • High Priority</p>
+                {assignments.length === 0 ? (
+                  <p className="py-4 text-center text-sm text-gray-500">No assignments found for this workspace yet.</p>
+                ) : assignments.slice(0, 6).map((assignment) => (
+                  <div key={assignment.$id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <p className="font-medium text-sm">Request #{assignment.requestId || assignment.$id}</p>
+                      <p className="text-xs text-gray-500">Assigned {new Date(assignment.assignedAt).toLocaleDateString()}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className={assignmentStatusColors[assignment.status]}>{assignment.status.replace(/_/g, " ")}</Badge>
+                      <Button size="sm" variant="ghost"><ArrowRight className="h-4 w-4" /></Button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline"><CheckCircle className="h-4 w-4 mr-1" />Accept</Button>
-                    <Button size="sm" variant="ghost"><ArrowRight className="h-4 w-4" /></Button>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-sm">Fire Extinguisher Refill</p>
-                    <p className="text-xs text-gray-500">Warehouse B, Industrial Area • Medium Priority</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline"><CheckCircle className="h-4 w-4 mr-1" />Accept</Button>
-                    <Button size="sm" variant="ghost"><ArrowRight className="h-4 w-4" /></Button>
-                  </div>
-                </div>
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -190,9 +217,9 @@ export default function WorkspacePage() {
             </CardHeader>
             <CardContent className="p-6 pt-0">
               <div className="grid grid-cols-3 gap-4 text-center">
-                <div><p className="text-2xl font-bold text-gray-900">₹4.2L</p><p className="text-xs text-gray-500 mt-1">This Month</p></div>
-                <div><p className="text-2xl font-bold text-gray-900">₹38L</p><p className="text-xs text-gray-500 mt-1">This Year</p></div>
-                <div><p className="text-2xl font-bold text-gray-900">142</p><p className="text-xs text-gray-500 mt-1">Jobs Completed</p></div>
+                <div><p className="text-2xl font-bold text-gray-900">₹{assignments.reduce((sum, item) => sum + item.earnings, 0).toLocaleString("en-IN")}</p><p className="text-xs text-gray-500 mt-1">Assigned Value</p></div>
+                <div><p className="text-2xl font-bold text-gray-900">{assignments.filter((item) => item.status === "completed").length}</p><p className="text-xs text-gray-500 mt-1">Completed</p></div>
+                <div><p className="text-2xl font-bold text-gray-900">{memberships.length}</p><p className="text-xs text-gray-500 mt-1">Team Members</p></div>
               </div>
             </CardContent>
           </Card>
@@ -200,7 +227,7 @@ export default function WorkspacePage() {
       )}
 
       {/* PARTNER VIEW */}
-      {isPartner && partnerProfile && (
+      {!isLoading && isPartner && partnerProfile && (
         <>
           {/* Partner Profile */}
           <Card>
@@ -219,7 +246,7 @@ export default function WorkspacePage() {
                   </div>
                   <div className="flex flex-wrap gap-2 mt-3">
                     {partnerProfile.skills.map((skill) => (
-                      <Badge key={skill} variant="secondary">{skill}</Badge>
+                      <Badge key={skill} variant="default">{skill}</Badge>
                     ))}
                   </div>
                 </div>
@@ -285,7 +312,7 @@ export default function WorkspacePage() {
       )}
 
       {/* CUSTOMER / GUEST VIEW - Join Partner Program */}
-      {!isAdmin && !isPartner && (
+      {!isLoading && !isAdmin && !isPartner && (
         <Card>
           <CardContent className="p-8 text-center">
             <div className="h-16 w-16 bg-brand-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -309,8 +336,8 @@ export default function WorkspacePage() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-4 border-b"><h2 className="text-lg font-bold">Join Partner Program</h2><button onClick={() => setShowJoinModal(false)}><X className="h-5 w-5" /></button></div>
             <div className="p-4 space-y-4">
-              <Input label="Skills" placeholder="e.g., HVAC, Electrical, Plumbing, Fire Safety" value={joinForm.skills} onChange={(e) => setJoinForm({ ...joinForm, skills: e.target.value })} />
-              <Input label="Service Areas" placeholder="e.g., Bangalore, Whitefield, Electronic City" value={joinForm.serviceAreas} onChange={(e) => setJoinForm({ ...joinForm, serviceAreas: e.target.value })} />
+              <Input label="Skills" placeholder="Your service skills" value={joinForm.skills} onChange={(e) => setJoinForm({ ...joinForm, skills: e.target.value })} />
+              <Input label="Service Areas" placeholder="Areas you can serve" value={joinForm.serviceAreas} onChange={(e) => setJoinForm({ ...joinForm, serviceAreas: e.target.value })} />
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Partner Type</label><select className="w-full h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" value={joinForm.partnerType} onChange={(e) => setJoinForm({ ...joinForm, partnerType: e.target.value as any })}><option value="service">Service Partner</option><option value="vendor">Vendor Partner</option><option value="both">Hybrid (Both)</option></select></div>
               <div className="flex gap-2 pt-2"><Button variant="outline" className="flex-1" onClick={() => setShowJoinModal(false)}>Cancel</Button><Button className="flex-1" onClick={handleJoinProgram}>Submit Application</Button></div>
             </div>

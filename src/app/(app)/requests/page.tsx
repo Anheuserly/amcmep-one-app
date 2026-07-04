@@ -10,23 +10,18 @@ import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getStatusColor, getStatusLabel, formatDate } from "@/lib/utils";
+import {
+  createRequest,
+  fetchRequests,
+  toServiceRequest,
+  userIdentity,
+} from "@/lib/services/appwriteServices";
 import toast from "react-hot-toast";
 import {
-  ClipboardList, Search, Filter, Plus, MapPin, Calendar, User, IndianRupee,
-  MoreHorizontal, ArrowRight, CheckCircle, XCircle, Clock, AlertTriangle, ChevronDown, X
+  ClipboardList, Search, Plus, MapPin, Calendar, IndianRupee,
+  ArrowRight, CheckCircle, XCircle, X
 } from "lucide-react";
 import type { ServiceRequest } from "@/types";
-
-const mockRequests: ServiceRequest[] = [
-  { $id: "1", title: "HVAC Annual Maintenance", description: "Full AC unit service and filter replacement", status: "in_progress", priority: "high", serviceType: "HVAC", siteAddress: "Office 301, Tech Park, Bangalore", customerId: "user1", customerName: "John Doe", customerPhone: "9876543210", assignedTo: "partner1", assignedBusinessId: "biz1", estimatedCost: 5000, finalCost: undefined, scheduledAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 2).toISOString(), completedAt: undefined, createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(), updatedAt: new Date(Date.now() - 1000 * 60 * 60).toISOString() },
-  { $id: "2", title: "Fire Extinguisher Inspection", description: "Monthly inspection of all fire safety equipment", status: "open", priority: "urgent", serviceType: "Fire Safety", siteAddress: "Warehouse B, Industrial Area, Bangalore", customerId: "user1", customerName: "John Doe", customerPhone: "9876543210", assignedTo: undefined, assignedBusinessId: undefined, estimatedCost: 3000, finalCost: undefined, scheduledAt: undefined, completedAt: undefined, createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString() },
-  { $id: "3", title: "Plumbing Leak Repair", description: "Bathroom pipe leak repair and fixture replacement", status: "completed", priority: "medium", serviceType: "Plumbing", siteAddress: "Residence, 45 MG Road, Bangalore", customerId: "user1", customerName: "John Doe", customerPhone: "9876543210", assignedTo: "partner2", assignedBusinessId: "biz2", estimatedCost: 2000, finalCost: 2500, scheduledAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(), completedAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(), updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString() },
-  { $id: "4", title: "Electrical Panel Upgrade", description: "Upgrade old panel to support new equipment", status: "awaiting_payment", priority: "high", serviceType: "Electrical", siteAddress: "Factory Unit 12, Peenya, Bangalore", customerId: "user1", customerName: "John Doe", customerPhone: "9876543210", assignedTo: "partner3", assignedBusinessId: "biz3", estimatedCost: 15000, finalCost: 18000, scheduledAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString(), completedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(), createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(), updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString() },
-  { $id: "5", title: "Fire Alarm System Test", description: "Quarterly testing of fire alarm and smoke detectors", status: "open", priority: "medium", serviceType: "Fire Safety", siteAddress: "Office 301, Tech Park, Bangalore", customerId: "user1", customerName: "John Doe", customerPhone: "9876543210", assignedTo: undefined, assignedBusinessId: undefined, estimatedCost: 4000, finalCost: undefined, scheduledAt: undefined, completedAt: undefined, createdAt: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(), updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString() },
-  { $id: "6", title: "DG Set Servicing", description: "Diesel generator annual maintenance and oil change", status: "cancelled", priority: "low", serviceType: "DG Set", siteAddress: "Warehouse B, Industrial Area, Bangalore", customerId: "user1", customerName: "John Doe", customerPhone: "9876543210", assignedTo: "partner1", assignedBusinessId: "biz1", estimatedCost: 8000, finalCost: undefined, scheduledAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 14).toISOString(), completedAt: undefined, createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 20).toISOString(), updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 14).toISOString() },
-  { $id: "7", title: "Water Tank Cleaning", description: "Underground and overhead tank cleaning and disinfection", status: "in_progress", priority: "medium", serviceType: "Water", siteAddress: "Residence, 45 MG Road, Bangalore", customerId: "user1", customerName: "John Doe", customerPhone: "9876543210", assignedTo: "partner4", assignedBusinessId: "biz4", estimatedCost: 3500, finalCost: undefined, scheduledAt: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(), completedAt: undefined, createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(), updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString() },
-  { $id: "8", title: "CCTV Maintenance", description: "Camera cleaning, lens adjustment, and DVR health check", status: "completed", priority: "low", serviceType: "CCTV", siteAddress: "Factory Unit 12, Peenya, Bangalore", customerId: "user1", customerName: "John Doe", customerPhone: "9876543210", assignedTo: "partner2", assignedBusinessId: "biz2", estimatedCost: 2500, finalCost: 2500, scheduledAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(), completedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(), createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 8).toISOString(), updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString() },
-];
 
 const statusFilterOptions = ["all", "open", "in_progress", "completed", "cancelled", "awaiting_payment"];
 const priorityColors = { low: "bg-gray-100 text-gray-700", medium: "bg-blue-100 text-blue-700", high: "bg-orange-100 text-orange-700", urgent: "bg-red-100 text-red-700" };
@@ -34,11 +29,12 @@ const priorityColors = { low: "bg-gray-100 text-gray-700", medium: "bg-blue-100 
 function RequestsPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { activeRole } = useAuth();
+  const { activeRole, profile } = useAuth();
   const isAdmin = activeRole === "administrator";
   const isPartner = activeRole === "partner";
 
-  const [requests, setRequests] = useState<ServiceRequest[]>(mockRequests);
+  const [requests, setRequests] = useState<ServiceRequest[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showCreateModal, setShowCreateModal] = useState(searchParams.get("action") === "create");
@@ -47,6 +43,27 @@ function RequestsPageInner() {
 
   // New request form state
   const [newRequest, setNewRequest] = useState({ title: "", description: "", serviceType: "", siteAddress: "", priority: "medium" as const, scheduledAt: "" });
+
+  useEffect(() => {
+    let alive = true;
+    async function loadRequests() {
+      if (!profile?.userId) return;
+      setIsLoading(true);
+      try {
+        const docs = await fetchRequests({ ...userIdentity(profile), limit: 100 });
+        if (alive) setRequests(docs.map(toServiceRequest));
+      } catch {
+        if (alive) {
+          setRequests([]);
+          toast.error("Unable to load service requests");
+        }
+      } finally {
+        if (alive) setIsLoading(false);
+      }
+    }
+    loadRequests();
+    return () => { alive = false; };
+  }, [profile]);
 
   const filtered = requests.filter((r) => {
     const matchesSearch = r.title.toLowerCase().includes(searchQuery.toLowerCase()) || r.serviceType.toLowerCase().includes(searchQuery.toLowerCase()) || r.siteAddress.toLowerCase().includes(searchQuery.toLowerCase());
@@ -61,25 +78,39 @@ function RequestsPageInner() {
     completed: requests.filter((r) => r.status === "completed").length,
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!newRequest.title || !newRequest.serviceType || !newRequest.siteAddress) {
       toast.error("Please fill all required fields");
       return;
     }
-    const created: ServiceRequest = {
-      $id: `new-${Date.now()}`,
-      ...newRequest,
-      status: "open",
-      customerId: "user1",
-      customerName: "John Doe",
-      customerPhone: "9876543210",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    setRequests((prev) => [created, ...prev]);
-    setShowCreateModal(false);
-    setNewRequest({ title: "", description: "", serviceType: "", siteAddress: "", priority: "medium", scheduledAt: "" });
-    toast.success("Service request created!");
+    const now = new Date().toISOString();
+    try {
+      const created = await createRequest({
+        ...newRequest,
+        status: "pending",
+        type: "service",
+        isActive: true,
+        customerId: profile?.customerId || profile?.userId || "",
+        user_id: profile?.userId || "",
+        requestorUserId: profile?.userId || "",
+        customerName: profile?.name || "",
+        requestorName: profile?.name || "",
+        customerPhone: profile?.phone || "",
+        requestorPhone: profile?.phone || "",
+        serviceDescription: newRequest.description,
+        address: newRequest.siteAddress,
+        createdAt: now,
+        updatedAt: now,
+        submittedAt: now,
+        source: "amcmep_one_web",
+      });
+      setRequests((prev) => [toServiceRequest(created), ...prev]);
+      setShowCreateModal(false);
+      setNewRequest({ title: "", description: "", serviceType: "", siteAddress: "", priority: "medium", scheduledAt: "" });
+      toast.success("Service request created");
+    } catch {
+      toast.error("Unable to create request");
+    }
   };
 
   const handleStatusChange = (id: string, newStatus: ServiceRequest["status"]) => {
@@ -125,7 +156,9 @@ function RequestsPageInner() {
 
       {/* Request List */}
       <div className="space-y-3">
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <Card><CardContent className="p-8 text-center text-sm text-gray-500">Loading your service requests...</CardContent></Card>
+        ) : filtered.length === 0 ? (
           <EmptyState icon={<ClipboardList className="h-12 w-12" />} title="No requests found" description={searchQuery ? "Try adjusting your search or filters" : "Create your first service request"} action={<Button onClick={() => setShowCreateModal(true)}><Plus className="h-4 w-4 mr-2" />New Request</Button>} />
         ) : (
           filtered.map((req) => (
@@ -168,9 +201,9 @@ function RequestsPageInner() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-4 border-b"><h2 className="text-lg font-bold">New Service Request</h2><button onClick={() => setShowCreateModal(false)}><X className="h-5 w-5" /></button></div>
             <div className="p-4 space-y-4">
-              <Input label="Title" placeholder="e.g., HVAC Annual Maintenance" value={newRequest.title} onChange={(e) => setNewRequest({ ...newRequest, title: e.target.value })} />
+              <Input label="Title" placeholder="Short service title" value={newRequest.title} onChange={(e) => setNewRequest({ ...newRequest, title: e.target.value })} />
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea className="w-full h-20 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="Describe the issue..." value={newRequest.description} onChange={(e) => setNewRequest({ ...newRequest, description: e.target.value })} /></div>
-              <Input label="Service Type" placeholder="e.g., HVAC, Plumbing, Fire Safety" value={newRequest.serviceType} onChange={(e) => setNewRequest({ ...newRequest, serviceType: e.target.value })} />
+              <Input label="Service Type" placeholder="Service category" value={newRequest.serviceType} onChange={(e) => setNewRequest({ ...newRequest, serviceType: e.target.value })} />
               <Input label="Site Address" placeholder="Full address where service is needed" value={newRequest.siteAddress} onChange={(e) => setNewRequest({ ...newRequest, siteAddress: e.target.value })} />
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Priority</label><select className="w-full h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" value={newRequest.priority} onChange={(e) => setNewRequest({ ...newRequest, priority: e.target.value as any })}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
               <Input label="Scheduled Date" type="date" value={newRequest.scheduledAt} onChange={(e) => setNewRequest({ ...newRequest, scheduledAt: e.target.value })} />

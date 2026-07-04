@@ -1,80 +1,109 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatRelative } from "@/lib/utils";
 import {
-  MessageSquare, Send, Paperclip, Image, Search, MoreVertical, Check, CheckCheck, ChevronLeft
+  fetchChatMessages,
+  fetchChatSessions,
+  sendChatMessage,
+  toChatMessage,
+  toChatSession,
+  userIdentity,
+} from "@/lib/services/appwriteServices";
+import toast from "react-hot-toast";
+import {
+  MessageSquare, Send, Paperclip, Image, Search, MoreVertical, CheckCheck, ChevronLeft
 } from "lucide-react";
 import type { ChatSession, ChatMessage } from "@/types";
 
-const mockSessions: ChatSession[] = [
-  { $id: "1", type: "business", participantIds: ["user1", "biz1"], participantNames: ["You", "Shree Ganesh Enterprises"], participantAvatars: ["", ""], businessId: "biz1", businessName: "Shree Ganesh Enterprises", lastMessage: "We will arrive at 10 AM tomorrow", lastMessageAt: new Date(Date.now() - 1000 * 60 * 5).toISOString(), unreadCount: 2, createdAt: "2024-01-01" },
-  { $id: "2", type: "customer", participantIds: ["user1", "user2"], participantNames: ["You", "Rahul Kumar"], participantAvatars: ["", ""], lastMessage: "Thanks for the update on the HVAC request", lastMessageAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(), unreadCount: 0, createdAt: "2024-01-02" },
-  { $id: "3", type: "business", participantIds: ["user1", "biz2"], participantNames: ["You", "Agni Fire Safety"], participantAvatars: ["", ""], businessId: "biz2", businessName: "Agni Fire Safety", lastMessage: "Your AMC renewal is due next week", lastMessageAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), unreadCount: 1, createdAt: "2024-01-03" },
-  { $id: "4", type: "partner", participantIds: ["user1", "user3"], participantNames: ["You", "Vikram Singh"], participantAvatars: ["", ""], lastMessage: "Can you cover the site visit on Saturday?", lastMessageAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), unreadCount: 0, createdAt: "2024-01-04" },
-  { $id: "5", type: "support", participantIds: ["user1", "support"], participantNames: ["You", "AMC Support"], participantAvatars: ["", ""], lastMessage: "Your ticket #1234 has been resolved", lastMessageAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), unreadCount: 0, createdAt: "2024-01-05" },
-  { $id: "6", type: "business", participantIds: ["user1", "biz3"], participantNames: ["You", "CoolAir HVAC"], participantAvatars: ["", ""], businessId: "biz3", businessName: "CoolAir HVAC", lastMessage: "Quote attached for the new installation", lastMessageAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(), unreadCount: 0, createdAt: "2024-01-06" },
-];
-
-const mockMessages: Record<string, ChatMessage[]> = {
-  "1": [
-    { $id: "m1", sessionId: "1", senderId: "biz1", senderName: "Shree Ganesh Enterprises", type: "text", content: "Hi, we received your fire safety inspection request", createdAt: new Date(Date.now() - 1000 * 60 * 60).toISOString() },
-    { $id: "m2", sessionId: "1", senderId: "user1", senderName: "You", type: "text", content: "Great, when can you visit?", createdAt: new Date(Date.now() - 1000 * 60 * 55).toISOString() },
-    { $id: "m3", sessionId: "1", senderId: "biz1", senderName: "Shree Ganesh Enterprises", type: "text", content: "We will arrive at 10 AM tomorrow", createdAt: new Date(Date.now() - 1000 * 60 * 5).toISOString() },
-  ],
-  "2": [
-    { $id: "m4", sessionId: "2", senderId: "user2", senderName: "Rahul Kumar", type: "text", content: "The HVAC service is completed", createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString() },
-    { $id: "m5", sessionId: "2", senderId: "user1", senderName: "You", type: "text", content: "Thanks for the update on the HVAC request", createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString() },
-  ],
-  "3": [
-    { $id: "m6", sessionId: "3", senderId: "biz2", senderName: "Agni Fire Safety", type: "text", content: "Your AMC renewal is due next week", createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString() },
-  ],
-  "4": [
-    { $id: "m7", sessionId: "4", senderId: "user3", senderName: "Vikram Singh", type: "text", content: "Can you cover the site visit on Saturday?", createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString() },
-  ],
-  "5": [
-    { $id: "m8", sessionId: "5", senderId: "support", senderName: "AMC Support", type: "text", content: "Your ticket #1234 has been resolved", createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString() },
-  ],
-  "6": [
-    { $id: "m9", sessionId: "6", senderId: "biz3", senderName: "CoolAir HVAC", type: "text", content: "Quote attached for the new installation", createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString() },
-  ],
-};
-
 export default function ChatsPage() {
   const { profile } = useAuth();
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>("1");
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [messagesBySession, setMessagesBySession] = useState<Record<string, ChatMessage[]>>({});
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const filteredSessions = mockSessions.filter((s) =>
+  useEffect(() => {
+    let alive = true;
+    async function loadSessions() {
+      if (!profile?.userId) return;
+      setIsLoading(true);
+      try {
+        const docs = await fetchChatSessions({ ...userIdentity(profile), limit: 100 });
+        const mapped = docs.map((doc) => toChatSession(doc, profile.userId));
+        if (!alive) return;
+        setSessions(mapped);
+        setSelectedSessionId((current) => current ?? mapped[0]?.$id ?? null);
+      } catch {
+        if (alive) toast.error("Unable to load chats");
+      } finally {
+        if (alive) setIsLoading(false);
+      }
+    }
+    loadSessions();
+    return () => { alive = false; };
+  }, [profile]);
+
+  useEffect(() => {
+    let alive = true;
+    async function loadMessages() {
+      if (!selectedSessionId || messagesBySession[selectedSessionId]) return;
+      try {
+        const docs = await fetchChatMessages(selectedSessionId);
+        if (alive) {
+          setMessagesBySession((prev) => ({
+            ...prev,
+            [selectedSessionId]: docs.map(toChatMessage),
+          }));
+        }
+      } catch {
+        if (alive) toast.error("Unable to load messages");
+      }
+    }
+    loadMessages();
+    return () => { alive = false; };
+  }, [messagesBySession, selectedSessionId]);
+
+  const filteredSessions = sessions.filter((s) =>
     s.participantNames.some((n) => n.toLowerCase().includes(searchQuery.toLowerCase())) ||
     (s.lastMessage && s.lastMessage.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const selectedSession = mockSessions.find((s) => s.$id === selectedSessionId);
-  const messages = selectedSessionId ? mockMessages[selectedSessionId] || [] : [];
+  const selectedSession = sessions.find((s) => s.$id === selectedSessionId);
+  const messages = selectedSessionId ? messagesBySession[selectedSessionId] || [] : [];
   const otherParticipant = selectedSession?.participantNames.find((_, i) => selectedSession.participantIds[i] !== profile?.userId) || "Unknown";
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!messageInput.trim() || !selectedSessionId) return;
-    const newMsg: ChatMessage = {
-      $id: `new-${Date.now()}`,
-      sessionId: selectedSessionId,
-      senderId: profile?.userId || "user1",
-      senderName: "You",
-      type: "text",
-      content: messageInput.trim(),
-      createdAt: new Date().toISOString(),
-    };
-    mockMessages[selectedSessionId] = [...(mockMessages[selectedSessionId] || []), newMsg];
+    const text = messageInput.trim();
     setMessageInput("");
+    try {
+      const created = await sendChatMessage({
+        sessionId: selectedSessionId,
+        messageText: text,
+        senderId: profile?.userId || "",
+        senderName: profile?.name || "You",
+      });
+      setMessagesBySession((prev) => ({
+        ...prev,
+        [selectedSessionId]: [...(prev[selectedSessionId] || []), toChatMessage(created)],
+      }));
+      setSessions((prev) => prev.map((session) => session.$id === selectedSessionId ? {
+        ...session,
+        lastMessage: text,
+        lastMessageAt: new Date().toISOString(),
+      } : session));
+    } catch {
+      setMessageInput(text);
+      toast.error("Unable to send message");
+    }
   };
 
   return (
@@ -85,7 +114,7 @@ export default function ChatsPage() {
           <div className="p-4 border-b border-gray-100">
             <div className="flex items-center justify-between mb-3">
               <h1 className="text-lg font-bold text-gray-900">Chats</h1>
-              <span className="text-xs text-gray-400">{mockSessions.length} conversations</span>
+              <span className="text-xs text-gray-400">{sessions.length} conversations</span>
             </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -99,8 +128,10 @@ export default function ChatsPage() {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {filteredSessions.length === 0 ? (
-              <EmptyState icon={<MessageSquare className="h-12 w-12" />} title="No chats found" description="Try a different search term" />
+            {isLoading ? (
+              <div className="p-6 text-center text-sm text-gray-500">Loading chats...</div>
+            ) : filteredSessions.length === 0 ? (
+              <EmptyState icon={<MessageSquare className="h-12 w-12" />} title="No chats found" description={searchQuery ? "Try a different search term" : "Your app conversations will appear here."} />
             ) : (
               filteredSessions.map((session) => (
                 <button

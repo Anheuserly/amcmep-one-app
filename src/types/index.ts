@@ -3,10 +3,14 @@ export type UserRole = "customer" | "partner" | "vendor" | "administrator" | "gu
 export interface UserProfile {
   $id: string;
   userId: string;
+  customerId?: string;
   name: string;
   email?: string;
   phone?: string;
   avatar?: string;
+  city?: string;
+  state?: string;
+  country?: string;
   roles: UserRole[];
   activeRole: UserRole;
   referralCode?: string;
@@ -119,6 +123,7 @@ export interface FeedPost {
   mediaUrls: string[];
   mediaType?: "image" | "video" | "mixed";
   likes: number;
+  likedBy?: string[];
   commentsCount: number;
   reposts: number;
   isLiked: boolean;

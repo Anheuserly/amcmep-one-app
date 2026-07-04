@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
+import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { formatRelative, getStatusColor } from "@/lib/utils";
+import { formatRelative } from "@/lib/utils";
+import { fetchNotifications, toActivityEvent } from "@/lib/services/appwriteServices";
+import toast from "react-hot-toast";
 import {
   MessageSquare,
   ClipboardList,
@@ -18,53 +18,6 @@ import {
   CheckCheck,
 } from "lucide-react";
 import type { ActivityEvent } from "@/types";
-
-const mockActivities: ActivityEvent[] = [
-  {
-    $id: "1",
-    userId: "user1",
-    type: "chat",
-    title: "New message from Shree Ganesh Enterprises",
-    description: "Regarding your HVAC service request",
-    referenceId: "chat1",
-    referenceType: "chat_session",
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
-  },
-  {
-    $id: "2",
-    userId: "user1",
-    type: "request",
-    title: "Service request updated",
-    description: "Request #SR-2024-001 is now In Progress",
-    referenceId: "req1",
-    referenceType: "service_request",
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-  },
-  {
-    $id: "3",
-    userId: "user1",
-    type: "amc",
-    title: "AMC expiring soon",
-    description: "Your Annual Maintenance Contract for Fire Safety expires in 7 days",
-    referenceId: "amc1",
-    referenceType: "amc_record",
-    isRead: true,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-  },
-  {
-    $id: "4",
-    userId: "user1",
-    type: "business",
-    title: "New partner joined your business",
-    description: "Rahul Kumar joined as a service partner",
-    referenceId: "member1",
-    referenceType: "workspace_membership",
-    isRead: true,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-  },
-];
 
 const typeIcons = {
   chat: MessageSquare,
@@ -85,8 +38,31 @@ const typeColors = {
 };
 
 export default function ActivityPage() {
-  const [activities, setActivities] = useState<ActivityEvent[]>(mockActivities);
+  const { profile } = useAuth();
+  const [activities, setActivities] = useState<ActivityEvent[]>([]);
   const [filter, setFilter] = useState<"all" | "unread">("all");
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    async function loadNotifications() {
+      if (!profile?.userId) return;
+      setIsLoading(true);
+      try {
+        const docs = await fetchNotifications({ userId: profile.userId, limit: 80 });
+        if (alive) setActivities(docs.map((doc) => toActivityEvent(doc, profile.userId)));
+      } catch {
+        if (alive) {
+          setActivities([]);
+          toast.error("Unable to load notifications");
+        }
+      } finally {
+        if (alive) setIsLoading(false);
+      }
+    }
+    loadNotifications();
+    return () => { alive = false; };
+  }, [profile]);
 
   const filtered = filter === "all" ? activities : activities.filter((a) => !a.isRead);
   const unreadCount = activities.filter((a) => !a.isRead).length;
@@ -135,7 +111,9 @@ export default function ActivityPage() {
       </div>
 
       <div className="space-y-3">
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <Card><CardContent className="p-8 text-center text-sm text-gray-500">Loading notifications...</CardContent></Card>
+        ) : filtered.length === 0 ? (
           <EmptyState
             icon={<Bell className="h-12 w-12" />}
             title="No activities"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -8,28 +8,21 @@ import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getStatusColor, getStatusLabel, formatDate } from "@/lib/utils";
+import { createRequest, fetchAmcRecords, toAmcRecord, userIdentity } from "@/lib/services/appwriteServices";
 import toast from "react-hot-toast";
 import {
-  ShieldCheck, Search, Filter, Plus, Calendar, MapPin, IndianRupee, CheckCircle,
-  AlertTriangle, RefreshCw, Clock, MoreHorizontal, X, ArrowRight, BarChart3
+  ShieldCheck, Search, Plus, Calendar, MapPin, IndianRupee, CheckCircle,
+  RefreshCw, Clock, X, ArrowRight
 } from "lucide-react";
 import type { AMCRecord } from "@/types";
-
-const mockAMC: AMCRecord[] = [
-  { $id: "1", title: "Fire Safety AMC - 2024", businessId: "biz2", businessName: "Agni Fire Safety", customerId: "user1", customerName: "John Doe", status: "active", amcType: "Fire Safety", startDate: "2024-01-01", endDate: "2024-12-31", cost: 45000, paymentStatus: "paid", visitCount: 8, totalVisits: 12, nextVisitDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString(), siteAddress: "Office 301, Tech Park, Bangalore", createdAt: "2024-01-01", updatedAt: "2024-01-01" },
-  { $id: "2", title: "HVAC Maintenance Contract", businessId: "biz1", businessName: "CoolAir HVAC", customerId: "user1", customerName: "John Doe", status: "active", amcType: "HVAC", startDate: "2024-03-01", endDate: "2025-02-28", cost: 60000, paymentStatus: "partial", visitCount: 3, totalVisits: 6, nextVisitDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString(), siteAddress: "Office 301, Tech Park, Bangalore", createdAt: "2024-03-01", updatedAt: "2024-03-01" },
-  { $id: "3", title: "Electrical Panel AMC", businessId: "biz3", businessName: "VoltTech Solutions", customerId: "user1", customerName: "John Doe", status: "expiring_soon", amcType: "Electrical", startDate: "2023-06-01", endDate: "2024-06-30", cost: 35000, paymentStatus: "paid", visitCount: 10, totalVisits: 10, nextVisitDate: undefined, siteAddress: "Factory Unit 12, Peenya, Bangalore", createdAt: "2023-06-01", updatedAt: "2023-06-01" },
-  { $id: "4", title: "Plumbing Annual Contract", businessId: "biz4", businessName: "FlowPro Plumbing", customerId: "user1", customerName: "John Doe", status: "expired", amcType: "Plumbing", startDate: "2023-01-01", endDate: "2023-12-31", cost: 25000, paymentStatus: "paid", visitCount: 8, totalVisits: 8, nextVisitDate: undefined, siteAddress: "Residence, 45 MG Road, Bangalore", createdAt: "2023-01-01", updatedAt: "2023-01-01" },
-  { $id: "5", title: "DG Set Maintenance", businessId: "biz5", businessName: "PowerGen Services", customerId: "user1", customerName: "John Doe", status: "active", amcType: "DG Set", startDate: "2024-04-01", endDate: "2025-03-31", cost: 80000, paymentStatus: "paid", visitCount: 2, totalVisits: 8, nextVisitDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString(), siteAddress: "Warehouse B, Industrial Area, Bangalore", createdAt: "2024-04-01", updatedAt: "2024-04-01" },
-  { $id: "6", title: "CCTV Maintenance Contract", businessId: "biz6", businessName: "SecureView Systems", customerId: "user1", customerName: "John Doe", status: "cancelled", amcType: "CCTV", startDate: "2024-02-01", endDate: "2025-01-31", cost: 20000, paymentStatus: "pending", visitCount: 1, totalVisits: 6, nextVisitDate: undefined, siteAddress: "Factory Unit 12, Peenya, Bangalore", createdAt: "2024-02-01", updatedAt: "2024-02-01" },
-];
 
 const statusFilterOptions = ["all", "active", "expiring_soon", "expired", "cancelled"];
 const paymentColors = { pending: "bg-yellow-100 text-yellow-700", paid: "bg-green-100 text-green-700", partial: "bg-blue-100 text-blue-700" };
 
 export default function AMCPage() {
-  const { activeRole } = useAuth();
-  const [amcList, setAmcList] = useState<AMCRecord[]>(mockAMC);
+  const { profile } = useAuth();
+  const [amcList, setAmcList] = useState<AMCRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -50,35 +43,64 @@ export default function AMCPage() {
     expired: amcList.filter((a) => a.status === "expired").length,
   };
 
-  const handleCreate = () => {
+  useEffect(() => {
+    let alive = true;
+    async function loadAmc() {
+      if (!profile?.userId) {
+        setIsLoading(false);
+        return;
+      }
+      setIsLoading(true);
+      try {
+        const docs = await fetchAmcRecords({ ...userIdentity(profile), limit: 100 });
+        if (alive) setAmcList(docs.map(toAmcRecord));
+      } catch {
+        if (alive) toast.error("Unable to load AMC contracts");
+      } finally {
+        if (alive) setIsLoading(false);
+      }
+    }
+    loadAmc();
+    return () => { alive = false; };
+  }, [profile]);
+
+  const handleCreate = async () => {
     if (!newAMC.title || !newAMC.businessName || !newAMC.amcType || !newAMC.startDate || !newAMC.endDate) {
       toast.error("Please fill all required fields");
       return;
     }
-    const created: AMCRecord = {
-      $id: `new-${Date.now()}`,
-      title: newAMC.title,
-      businessId: "biz-new",
-      businessName: newAMC.businessName,
-      customerId: "user1",
-      customerName: "John Doe",
-      status: "active",
-      amcType: newAMC.amcType,
-      startDate: newAMC.startDate,
-      endDate: newAMC.endDate,
-      cost: Number(newAMC.cost) || 0,
-      paymentStatus: "pending",
-      visitCount: 0,
-      totalVisits: Number(newAMC.totalVisits) || 4,
-      nextVisitDate: newAMC.startDate,
-      siteAddress: newAMC.siteAddress,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    setAmcList((prev) => [created, ...prev]);
-    setShowCreateModal(false);
-    setNewAMC({ title: "", businessName: "", amcType: "", startDate: "", endDate: "", cost: "", siteAddress: "", totalVisits: "4" });
-    toast.success("AMC contract created!");
+    try {
+      const now = new Date().toISOString();
+      const created = await createRequest({
+        title: newAMC.title,
+        businessName: newAMC.businessName,
+        amcType: newAMC.amcType,
+        serviceType: newAMC.amcType,
+        type: "amc",
+        amcStartDate: newAMC.startDate,
+        amcEndDate: newAMC.endDate,
+        cost: Number(newAMC.cost) || 0,
+        totalVisits: Number(newAMC.totalVisits) || 4,
+        siteAddress: newAMC.siteAddress,
+        address: newAMC.siteAddress,
+        customerId: profile?.customerId || profile?.userId || "",
+        user_id: profile?.userId || "",
+        customerName: profile?.name || "",
+        requestorName: profile?.name || "",
+        status: "active",
+        paymentStatus: "pending",
+        createdAt: now,
+        updatedAt: now,
+        isActive: true,
+        source: "amcmep_one_web",
+      });
+      setAmcList((prev) => [toAmcRecord(created), ...prev]);
+      setShowCreateModal(false);
+      setNewAMC({ title: "", businessName: "", amcType: "", startDate: "", endDate: "", cost: "", siteAddress: "", totalVisits: "4" });
+      toast.success("AMC contract created");
+    } catch {
+      toast.error("Unable to create AMC");
+    }
   };
 
   const handleRenew = (id: string) => {
@@ -121,7 +143,9 @@ export default function AMCPage() {
 
       {/* AMC List */}
       <div className="space-y-3">
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <Card><CardContent className="p-8 text-center text-sm text-gray-500">Loading AMC contracts...</CardContent></Card>
+        ) : filtered.length === 0 ? (
           <EmptyState icon={<ShieldCheck className="h-12 w-12" />} title="No AMC contracts found" description={searchQuery ? "Try adjusting your search" : "Create your first AMC contract"} action={<Button onClick={() => setShowCreateModal(true)}><Plus className="h-4 w-4 mr-2" />New AMC</Button>} />
         ) : (
           filtered.map((amc) => {
@@ -176,17 +200,17 @@ export default function AMCPage() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-4 border-b"><h2 className="text-lg font-bold">New AMC Contract</h2><button onClick={() => setShowCreateModal(false)}><X className="h-5 w-5" /></button></div>
             <div className="p-4 space-y-4">
-              <Input label="Title" placeholder="e.g., Fire Safety AMC 2024" value={newAMC.title} onChange={(e) => setNewAMC({ ...newAMC, title: e.target.value })} />
+              <Input label="Title" placeholder="Contract title" value={newAMC.title} onChange={(e) => setNewAMC({ ...newAMC, title: e.target.value })} />
               <Input label="Business Name" placeholder="Service provider name" value={newAMC.businessName} onChange={(e) => setNewAMC({ ...newAMC, businessName: e.target.value })} />
-              <Input label="AMC Type" placeholder="e.g., Fire Safety, HVAC, Electrical" value={newAMC.amcType} onChange={(e) => setNewAMC({ ...newAMC, amcType: e.target.value })} />
+              <Input label="AMC Type" placeholder="Maintenance category" value={newAMC.amcType} onChange={(e) => setNewAMC({ ...newAMC, amcType: e.target.value })} />
               <Input label="Site Address" placeholder="Service location address" value={newAMC.siteAddress} onChange={(e) => setNewAMC({ ...newAMC, siteAddress: e.target.value })} />
               <div className="grid grid-cols-2 gap-3">
                 <Input label="Start Date" type="date" value={newAMC.startDate} onChange={(e) => setNewAMC({ ...newAMC, startDate: e.target.value })} />
                 <Input label="End Date" type="date" value={newAMC.endDate} onChange={(e) => setNewAMC({ ...newAMC, endDate: e.target.value })} />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <Input label="Cost (₹)" type="number" placeholder="e.g., 50000" value={newAMC.cost} onChange={(e) => setNewAMC({ ...newAMC, cost: e.target.value })} />
-                <Input label="Total Visits" type="number" placeholder="e.g., 12" value={newAMC.totalVisits} onChange={(e) => setNewAMC({ ...newAMC, totalVisits: e.target.value })} />
+                <Input label="Cost (₹)" type="number" placeholder="Contract amount" value={newAMC.cost} onChange={(e) => setNewAMC({ ...newAMC, cost: e.target.value })} />
+                <Input label="Total Visits" type="number" placeholder="Planned visits" value={newAMC.totalVisits} onChange={(e) => setNewAMC({ ...newAMC, totalVisits: e.target.value })} />
               </div>
               <div className="flex gap-2 pt-2"><Button variant="outline" className="flex-1" onClick={() => setShowCreateModal(false)}>Cancel</Button><Button className="flex-1" onClick={handleCreate}>Create AMC</Button></div>
             </div>

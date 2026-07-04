@@ -3,7 +3,14 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { ID, type Models } from "appwrite";
 import { appwrite } from "@/lib/appwrite/client";
-import { appwriteConfig } from "@/lib/appwrite/config";
+import {
+  clearCurrentSession,
+  clearStoredProfileSession,
+  ensureAnonymousSession,
+  linkEmailClientProfile,
+  loadStoredProfileSession,
+} from "@/lib/services/authServices";
+import { fetchClientProfile, readString, readStringArray } from "@/lib/services/appwriteServices";
 import type { UserProfile, UserRole } from "@/types";
 
 interface AuthState {
@@ -21,6 +28,7 @@ interface AuthContextType extends AuthState {
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   createGuestSession: () => Promise<void>;
+  completeQrProfileSession: (profile: UserProfile) => void;
   switchRole: (role: UserRole) => void;
   refreshProfile: () => Promise<void>;
 }
@@ -41,24 +49,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshProfile = useCallback(async () => {
     try {
       const user = await appwrite.account.get();
-      const roles: UserRole[] = user.prefs?.roles?.length
+      if (!user.email) {
+        const stored = loadStoredProfileSession();
+        if (stored?.profile) {
+          setState((prev) => ({
+            ...prev,
+            user,
+            profile: stored.profile,
+            isAuthenticated: true,
+            activeRole: stored.profile.activeRole,
+            roles: stored.profile.roles,
+            isLoading: false,
+          }));
+          return;
+        }
+      }
+      const clientProfile = await fetchClientProfile(user.$id);
+      const clientRoles = readStringArray(clientProfile ?? {}, "roles") as UserRole[];
+      const roles: UserRole[] = clientRoles.length
+        ? clientRoles
+        : user.prefs?.roles?.length
         ? user.prefs.roles
         : ["customer"];
-      const activeRole = (user.prefs?.activeRole as UserRole) || roles[0];
+      const activeRole =
+        (readString(clientProfile ?? {}, "activeRole") as UserRole) ||
+        (user.prefs?.activeRole as UserRole) ||
+        roles[0];
 
       const profile: UserProfile = {
-        $id: user.$id,
+        $id: clientProfile?.$id ?? user.$id,
         userId: user.$id,
-        name: user.name || user.prefs?.name || "User",
-        email: user.email,
-        phone: user.phone,
-        avatar: user.prefs?.avatar,
+        customerId: readString(clientProfile ?? {}, "customerId"),
+        name: readString(clientProfile ?? {}, "name") || user.name || user.prefs?.name || "User",
+        email: readString(clientProfile ?? {}, "email") || user.email,
+        phone: readString(clientProfile ?? {}, "phone") || user.phone,
+        avatar: readString(clientProfile ?? {}, "profileImage") || user.prefs?.avatar,
+        city: readString(clientProfile ?? {}, "city"),
+        state: readString(clientProfile ?? {}, "state"),
+        country: readString(clientProfile ?? {}, "country") || "India",
         roles,
         activeRole,
-        referralCode: user.prefs?.referralCode,
-        preferredLanguage: user.prefs?.preferredLanguage || "en",
-        createdAt: user.$createdAt,
-        updatedAt: user.$updatedAt,
+        referralCode: user.prefs?.referralCode || readString(clientProfile ?? {}, "referralCode"),
+        preferredLanguage: readString(clientProfile ?? {}, "language") || user.prefs?.preferredLanguage || "en",
+        createdAt: readString(clientProfile ?? {}, "createdAt") || user.$createdAt,
+        updatedAt: readString(clientProfile ?? {}, "updatedAt") || user.$updatedAt,
       };
 
       setState((prev) => ({
@@ -83,25 +117,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshProfile();
   }, [refreshProfile]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    await appwrite.account.createEmailPasswordSession(email, password);
-    await refreshProfile();
-  }, [refreshProfile]);
+  const login = useCallback(
+    async (email: string, password: string) => {
+      clearStoredProfileSession();
+      await clearCurrentSession();
+      await appwrite.account.createEmailPasswordSession(email, password);
+      const user = await appwrite.account.get();
+      await linkEmailClientProfile({ accountId: user.$id, email: user.email, name: user.name });
+      await refreshProfile();
+    },
+    [refreshProfile]
+  );
 
-  const register = useCallback(async (email: string, password: string, name: string) => {
-    await appwrite.account.create(ID.unique(), email, password, name);
-    await appwrite.account.createEmailPasswordSession(email, password);
-    await appwrite.account.updatePrefs({
-      name,
-      roles: ["customer"],
-      activeRole: "customer",
-      preferredLanguage: "en",
-    });
-    await refreshProfile();
-  }, [refreshProfile]);
+  const register = useCallback(
+    async (email: string, password: string, name: string) => {
+      clearStoredProfileSession();
+      await clearCurrentSession();
+      await appwrite.account.create(ID.unique(), email, password, name);
+      await appwrite.account.createEmailPasswordSession(email, password);
+      await appwrite.account.updatePrefs({
+        name,
+        roles: ["customer"],
+        activeRole: "customer",
+        preferredLanguage: "en",
+      });
+      const user = await appwrite.account.get();
+      await linkEmailClientProfile({ accountId: user.$id, email: user.email, name });
+      await refreshProfile();
+    },
+    [refreshProfile]
+  );
 
   const logout = useCallback(async () => {
-    await appwrite.account.deleteSession("current");
+    clearStoredProfileSession();
+    await clearCurrentSession();
     setState({
       user: null,
       profile: null,
@@ -114,19 +163,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const createGuestSession = useCallback(async () => {
-    await appwrite.account.createAnonymousSession();
-    await appwrite.account.updatePrefs({
-      roles: ["guest"],
-      activeRole: "guest",
-    });
+    clearStoredProfileSession();
+    await clearCurrentSession();
+    await ensureAnonymousSession();
+    try {
+      await appwrite.account.updatePrefs({
+        roles: ["guest"],
+        activeRole: "guest",
+      });
+    } catch {}
     await refreshProfile();
   }, [refreshProfile]);
 
-  const switchRole = useCallback((role: UserRole) => {
-    if (state.roles.includes(role)) {
-      setState((prev) => ({ ...prev, activeRole: role }));
-    }
-  }, [state.roles]);
+  const completeQrProfileSession = useCallback((profile: UserProfile) => {
+    setState((prev) => ({
+      ...prev,
+      profile,
+      isAuthenticated: true,
+      activeRole: profile.activeRole,
+      roles: profile.roles,
+      isLoading: false,
+    }));
+  }, []);
+
+  const switchRole = useCallback(
+    (role: UserRole) => {
+      if (state.roles.includes(role)) {
+        setState((prev) => ({ ...prev, activeRole: role }));
+      }
+    },
+    [state.roles]
+  );
 
   return (
     <AuthContext.Provider
@@ -136,6 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         createGuestSession,
+        completeQrProfileSession,
         switchRole,
         refreshProfile,
       }}

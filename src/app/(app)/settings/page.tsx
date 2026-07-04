@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import toast from "react-hot-toast";
 import {
   Globe,
   Bell,
@@ -39,9 +38,7 @@ export default function SettingsPage() {
   });
 
   const handleDeleteAccount = () => {
-    if (confirm("Are you sure you want to delete your account? This cannot be undone.")) {
-      toast.success("Account deletion request submitted");
-    }
+    window.location.href = "https://amcmep.in/delete-account";
   };
 
   return (

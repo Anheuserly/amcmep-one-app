@@ -24,7 +24,6 @@ const nextConfig: NextConfig = {
         source: "/",
         destination: "/dashboard",
         permanent: false,
-        has: [{ type: "cookie", key: "amcmep-session" }],
       },
     ];
   },

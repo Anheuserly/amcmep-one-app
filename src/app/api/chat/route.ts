@@ -1,49 +1,53 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const mockSessions = [
-  { $id: "1", participantIds: ["user1", "biz1"], participantNames: ["You", "Shree Ganesh Enterprises"], lastMessage: "We will arrive at 10 AM tomorrow", unreadCount: 2 },
-  { $id: "2", participantIds: ["user1", "user2"], participantNames: ["You", "Rahul Kumar"], lastMessage: "Thanks for the update", unreadCount: 0 },
-];
-
-const mockMessages: Record<string, any[]> = {
-  "1": [{ $id: "m1", sessionId: "1", senderId: "biz1", senderName: "Shree Ganesh Enterprises", type: "text", content: "Hi, we received your request", createdAt: "2024-03-20T10:00:00Z" }],
-};
+import {
+  fetchChatMessages,
+  fetchChatSessions,
+  sendChatMessage,
+  toChatMessage,
+  toChatSession,
+} from "@/lib/services/appwriteServices";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const sessionId = searchParams.get("sessionId");
+  const sessionId = searchParams.get("sessionId") ?? "";
+  const userId = searchParams.get("userId") ?? "";
+  const customerId = searchParams.get("customerId") ?? "";
+  const phone = searchParams.get("phone") ?? "";
 
-  if (sessionId) {
-    const messages = mockMessages[sessionId] || [];
-    return NextResponse.json({ success: true, messages });
+  try {
+    if (sessionId) {
+      const messages = await fetchChatMessages(sessionId);
+      return NextResponse.json({ success: true, messages: messages.map(toChatMessage) });
+    }
+
+    if (!userId && !customerId && !phone) {
+      return NextResponse.json({ success: true, sessions: [] });
+    }
+
+    const sessions = await fetchChatSessions({ userId, customerId, phone });
+    return NextResponse.json({
+      success: true,
+      sessions: sessions.map((session) => toChatSession(session, userId || customerId)),
+    });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message || "Unable to load chats" }, { status: 500 });
   }
-
-  return NextResponse.json({ success: true, sessions: mockSessions });
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { sessionId, content, type = "text" } = body;
+    const sessionId = body.sessionId?.toString().trim() ?? "";
+    const content = body.content?.toString() ?? body.messageText?.toString() ?? "";
+    const senderId = body.senderId?.toString().trim() ?? "";
+    const senderName = body.senderName?.toString().trim() || "AMC MEP user";
 
-    if (!sessionId || !content) {
-      return NextResponse.json({ success: false, error: "Missing sessionId or content" }, { status: 400 });
+    if (!sessionId || !content.trim() || !senderId) {
+      return NextResponse.json({ success: false, error: "Missing session, message, or sender" }, { status: 400 });
     }
 
-    const message = {
-      $id: `msg-${Date.now()}`,
-      sessionId,
-      senderId: "user1",
-      senderName: "You",
-      type,
-      content,
-      createdAt: new Date().toISOString(),
-    };
-
-    if (!mockMessages[sessionId]) mockMessages[sessionId] = [];
-    mockMessages[sessionId].push(message);
-
-    return NextResponse.json({ success: true, message }, { status: 201 });
+    const message = await sendChatMessage({ sessionId, messageText: content, senderId, senderName });
+    return NextResponse.json({ success: true, message: toChatMessage(message) }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message || "Invalid request" }, { status: 400 });
   }

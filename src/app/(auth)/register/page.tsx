@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent } from "@/components/ui/Card";
 import toast from "react-hot-toast";
-import { ArrowLeft, User, Mail, Lock, Phone } from "lucide-react";
+import { ArrowLeft, ArrowRight, Lock, Mail, User } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -18,32 +18,35 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  if (isAuthenticated) {
-    router.push("/dashboard");
-    return null;
-  }
+  useEffect(() => {
+    if (isAuthenticated) router.replace("/dashboard");
+  }, [isAuthenticated, router]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !email.trim() || !password.trim()) {
-      toast.error("Please fill all fields");
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (name.trim().length < 2) {
+      toast.error("Enter your full name");
       return;
     }
-    if (password !== confirmPassword) {
-      toast.error("Passwords do not match");
+    if (!email.trim()) {
+      toast.error("Enter your email address");
       return;
     }
     if (password.length < 8) {
       toast.error("Password must be at least 8 characters");
       return;
     }
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
     setIsLoading(true);
     try {
       await register(email, password, name);
-      toast.success("Account created successfully!");
-      router.push("/dashboard");
+      toast.success("Account created");
+      router.replace("/dashboard");
     } catch (err: any) {
-      toast.error(err.message || "Registration failed. Please try again.");
+      toast.error(err.message || "Unable to create account.");
     } finally {
       setIsLoading(false);
     }
@@ -51,62 +54,67 @@ export default function RegisterPage() {
 
   return (
     <div className="animate-fade-in">
-      <button
-        onClick={() => router.push("/login")}
-        className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-6"
-      >
+      <button onClick={() => router.push("/login")} className="mb-5 flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-800">
         <ArrowLeft className="h-4 w-4" />
         Back to login
       </button>
 
-      <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Create Account</h1>
-        <p className="text-gray-500 mt-1">Join AMC MEP 24x7 platform</p>
-      </div>
+      <Card className="border-slate-200 shadow-xl shadow-slate-200/60">
+        <CardContent className="p-6 sm:p-7">
+          <div className="mb-6">
+            <img src="/amcmep-one-icon.png" alt="AMC MEP 24x7" className="mb-4 h-12 w-12 rounded-2xl shadow-sm" />
+            <h1 className="text-2xl font-black tracking-tight text-slate-950">Create your profile</h1>
+            <p className="mt-1 text-sm leading-6 text-slate-500">This creates your web account and links a customer profile in AMC MEP 24x7 One.</p>
+          </div>
 
-      <Card>
-        <CardContent className="p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
-              label="Full Name"
-              placeholder="John Doe"
+              label="Full name"
+              placeholder="Your full name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              icon={<User className="h-4 w-4 text-gray-400" />}
+              onChange={(event) => setName(event.target.value)}
+              autoComplete="name"
+              icon={<User className="h-4 w-4" />}
             />
             <Input
-              label="Email"
+              label="Email address"
               type="email"
               placeholder="you@example.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              icon={<Mail className="h-4 w-4 text-gray-400" />}
+              onChange={(event) => setEmail(event.target.value)}
+              autoComplete="email"
+              icon={<Mail className="h-4 w-4" />}
             />
             <Input
               label="Password"
               type="password"
-              placeholder="Min 8 characters"
+              placeholder="At least 8 characters"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              icon={<Lock className="h-4 w-4 text-gray-400" />}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete="new-password"
+              icon={<Lock className="h-4 w-4" />}
             />
             <Input
-              label="Confirm Password"
+              label="Confirm password"
               type="password"
               placeholder="Repeat password"
               value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              icon={<Lock className="h-4 w-4 text-gray-400" />}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              autoComplete="new-password"
+              icon={<Lock className="h-4 w-4" />}
             />
-            <Button
-              type="submit"
-              className="w-full"
-              size="lg"
-              isLoading={isLoading}
-            >
-              Create Account
+            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" size="lg" isLoading={isLoading}>
+              Create account
+              <ArrowRight className="h-4 w-4" />
             </Button>
           </form>
+
+          <p className="mt-5 text-center text-sm text-slate-500">
+            Already registered?{" "}
+            <button onClick={() => router.push("/login")} className="font-semibold text-blue-700 hover:text-blue-800">
+              Sign in
+            </button>
+          </p>
         </CardContent>
       </Card>
     </div>

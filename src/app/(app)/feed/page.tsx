@@ -1,79 +1,81 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Card, CardContent, CardHeader } from "@/components/ui/Card";
+import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
-import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatRelative } from "@/lib/utils";
+import {
+  addFeedComment,
+  createFeedPost,
+  fetchFeed,
+  fetchFeedComments,
+  toFeedComment,
+  toFeedPost,
+  toggleFeedLike,
+} from "@/lib/services/appwriteServices";
 import toast from "react-hot-toast";
 import {
-  Heart, MessageCircle, Repeat, Share, Image, Send, X, MoreHorizontal, ThumbsUp
+  Heart, MessageCircle, Repeat, Share, Image, Send, MoreHorizontal
 } from "lucide-react";
-import type { FeedPost, FeedComment, UserRole } from "@/types";
-
-const roleBadgeColors: Record<UserRole, string> = {
-  customer: "bg-green-100 text-green-700",
-  partner: "bg-blue-100 text-blue-700",
-  vendor: "bg-purple-100 text-purple-700",
-  administrator: "bg-red-100 text-red-700",
-  guest: "bg-gray-100 text-gray-600",
-};
-
-const mockComments: FeedComment[] = [
-  { $id: "c1", postId: "1", authorId: "user2", authorName: "Rahul Kumar", authorAvatar: "", content: "Great service! Would recommend.", likes: 3, createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString() },
-  { $id: "c2", postId: "1", authorId: "user3", authorName: "Vikram Singh", authorAvatar: "", content: "Thanks for sharing this update.", likes: 1, createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString() },
-  { $id: "c3", postId: "2", authorId: "user1", authorName: "John Doe", authorAvatar: "", content: "When is the next workshop?", likes: 2, createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString() },
-];
-
-const mockPosts: FeedPost[] = [
-  { $id: "1", authorId: "biz1", authorName: "Shree Ganesh Enterprises", authorAvatar: "", authorRole: "administrator", content: "🔥 Fire Safety Awareness Week starts Monday! Join us for free safety inspections at your workplace. Book your slot now through our app. #FireSafety #AMC #WorkplaceSafety", mediaUrls: [], mediaType: undefined, likes: 24, commentsCount: 2, reposts: 5, isLiked: false, isReposted: false, tags: ["FireSafety", "AMC", "WorkplaceSafety"], createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString() },
-  { $id: "2", authorId: "user2", authorName: "Rahul Kumar", authorAvatar: "", authorRole: "partner", content: "Just completed a full HVAC installation at Tech Park. The new VRF system is running beautifully! 💨❄️ #HVAC #Installation #Cooling", mediaUrls: [""], mediaType: "image", likes: 56, commentsCount: 1, reposts: 12, isLiked: true, isReposted: false, tags: ["HVAC", "Installation", "Cooling"], createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString() },
-  { $id: "3", authorId: "biz2", authorName: "Agni Fire Safety", authorAvatar: "", authorRole: "administrator", content: "⚠️ Important: Fire extinguisher refill reminders are now automated. Check your AMC dashboard for upcoming maintenance dates. Don't miss your safety compliance!", mediaUrls: [], mediaType: undefined, likes: 18, commentsCount: 0, reposts: 8, isLiked: false, isReposted: false, tags: ["FireSafety", "Compliance"], createdAt: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString() },
-  { $id: "4", authorId: "user3", authorName: "Vikram Singh", authorAvatar: "", authorRole: "partner", content: "Looking for qualified electricians in Bangalore for a large commercial project. DM me if interested! Must have MEP certification. #Hiring #Electrician #Bangalore", mediaUrls: [], mediaType: undefined, likes: 32, commentsCount: 0, reposts: 15, isLiked: false, isReposted: true, tags: ["Hiring", "Electrician", "Bangalore"], createdAt: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString() },
-  { $id: "5", authorId: "user1", authorName: "John Doe", authorAvatar: "", authorRole: "customer", content: "Had my annual fire safety inspection done today. Very professional team from Agni Fire Safety. All equipment certified and ready! 🔥✅ #CustomerReview #FireSafety", mediaUrls: [], mediaType: undefined, likes: 12, commentsCount: 0, reposts: 2, isLiked: false, isReposted: false, tags: ["CustomerReview", "FireSafety"], createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString() },
-  { $id: "6", authorId: "biz3", authorName: "CoolAir HVAC", authorAvatar: "", authorRole: "administrator", content: "Summer is coming! 🌞 Get your AC units serviced before the heat wave hits. Book AMC packages at 20% off this month. Offer valid till March 31st! #HVAC #SummerReady #Discount", mediaUrls: ["", ""], mediaType: "image", likes: 89, commentsCount: 0, reposts: 22, isLiked: true, isReposted: false, tags: ["HVAC", "SummerReady", "Discount"], createdAt: new Date(Date.now() - 1000 * 60 * 60 * 36).toISOString() },
-  { $id: "7", authorId: "user4", authorName: "Priya Sharma", authorAvatar: "", authorRole: "customer", content: "Just renewed my DG set AMC. Peace of mind for another year! The PowerGen team is always punctual and thorough. 💪 #DieselGenerator #AMC #Reliable", mediaUrls: [], mediaType: undefined, likes: 15, commentsCount: 0, reposts: 3, isLiked: false, isReposted: false, tags: ["DieselGenerator", "AMC", "Reliable"], createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString() },
-  { $id: "8", authorId: "biz4", authorName: "FlowPro Plumbing", authorAvatar: "", authorRole: "administrator", content: "💧 Leak detection tip: If your water bill suddenly spikes, you might have an underground leak. Our team uses advanced acoustic sensors to pinpoint leaks without breaking walls. #Plumbing #LeakDetection #SmartTechnology", mediaUrls: [], mediaType: undefined, likes: 42, commentsCount: 0, reposts: 9, isLiked: false, isReposted: false, tags: ["Plumbing", "LeakDetection", "SmartTechnology"], createdAt: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString() },
-];
+import type { FeedPost, FeedComment } from "@/types";
 
 export default function FeedPage() {
   const { profile } = useAuth();
-  const [posts, setPosts] = useState<FeedPost[]>(mockPosts);
+  const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [commentsByPost, setCommentsByPost] = useState<Record<string, FeedComment[]>>({});
+  const [isLoading, setIsLoading] = useState(true);
   const [newPostContent, setNewPostContent] = useState("");
   const [showComposer, setShowComposer] = useState(false);
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
 
-  const handlePost = () => {
+  useEffect(() => {
+    let alive = true;
+    async function loadFeed() {
+      setIsLoading(true);
+      try {
+        const docs = await fetchFeed({ limit: 50 });
+        if (alive) setPosts(docs.map((doc) => toFeedPost(doc, profile?.userId)));
+      } catch {
+        if (alive) toast.error("Unable to load feed");
+      } finally {
+        if (alive) setIsLoading(false);
+      }
+    }
+    loadFeed();
+    return () => { alive = false; };
+  }, [profile?.userId]);
+
+  const handlePost = async () => {
     if (!newPostContent.trim()) return;
-    const post: FeedPost = {
-      $id: `new-${Date.now()}`,
-      authorId: profile?.userId || "user1",
-      authorName: profile?.name || "User",
-      authorAvatar: profile?.avatar,
-      authorRole: (profile?.activeRole as UserRole) || "customer",
-      content: newPostContent.trim(),
-      mediaUrls: [],
-      mediaType: undefined,
-      likes: 0,
-      commentsCount: 0,
-      reposts: 0,
-      isLiked: false,
-      isReposted: false,
-      tags: [],
-      createdAt: new Date().toISOString(),
-    };
-    setPosts((prev) => [post, ...prev]);
-    setNewPostContent("");
-    setShowComposer(false);
-    toast.success("Post published!");
+    try {
+      const created = await createFeedPost({
+        content: newPostContent,
+        authorUserId: profile?.userId || "",
+        authorName: profile?.name || "AMC MEP user",
+        authorRole: profile?.activeRole || "customer",
+      });
+      setPosts((prev) => [toFeedPost(created, profile?.userId), ...prev]);
+      setNewPostContent("");
+      setShowComposer(false);
+      toast.success("Post published");
+    } catch {
+      toast.error("Unable to publish post");
+    }
   };
 
-  const toggleLike = (postId: string) => {
-    setPosts((prev) => prev.map((p) => p.$id === postId ? { ...p, isLiked: !p.isLiked, likes: p.isLiked ? p.likes - 1 : p.likes + 1 } : p));
+  const toggleLike = async (postId: string) => {
+    const post = posts.find((p) => p.$id === postId);
+    if (!post || !profile?.userId) return;
+    setPosts((prev) => prev.map((p) => p.$id === postId ? { ...p, isLiked: !p.isLiked, likes: p.isLiked ? Math.max(0, p.likes - 1) : p.likes + 1 } : p));
+    try {
+      await toggleFeedLike(postId, profile.userId, post.likedBy || [], post.likes);
+    } catch {
+      toast.error("Unable to update like");
+    }
   };
 
   const toggleRepost = (postId: string) => {
@@ -84,15 +86,30 @@ export default function FeedPage() {
     setExpandedComments((prev) => { const next = new Set(prev); next.has(postId) ? next.delete(postId) : next.add(postId); return next; });
   };
 
-  const addComment = (postId: string) => {
+  const addComment = async (postId: string) => {
     const text = commentInputs[postId]?.trim();
     if (!text) return;
-    setPosts((prev) => prev.map((p) => p.$id === postId ? { ...p, commentsCount: p.commentsCount + 1 } : p));
-    setCommentInputs((prev) => ({ ...prev, [postId]: "" }));
-    toast.success("Comment added!");
+    try {
+      const created = await addFeedComment({ postId, text, authorUserId: profile?.userId || "", authorName: profile?.name || "AMC MEP user" });
+      setCommentsByPost((prev) => ({ ...prev, [postId]: [...(prev[postId] || []), toFeedComment(created)] }));
+      setPosts((prev) => prev.map((p) => p.$id === postId ? { ...p, commentsCount: p.commentsCount + 1 } : p));
+      setCommentInputs((prev) => ({ ...prev, [postId]: "" }));
+    } catch {
+      toast.error("Unable to add comment");
+    }
   };
 
-  const postComments = (postId: string) => mockComments.filter((c) => c.postId === postId);
+  const loadComments = async (postId: string) => {
+    if (commentsByPost[postId]) return;
+    try {
+      const docs = await fetchFeedComments(postId);
+      setCommentsByPost((prev) => ({ ...prev, [postId]: docs.map(toFeedComment) }));
+    } catch {
+      toast.error("Unable to load comments");
+    }
+  };
+
+  const postComments = (postId: string) => commentsByPost[postId] || [];
 
   return (
     <div className="animate-fade-in max-w-2xl mx-auto space-y-6">
@@ -137,8 +154,10 @@ export default function FeedPage() {
 
       {/* Posts */}
       <div className="space-y-4">
-        {posts.length === 0 ? (
-          <EmptyState icon={<MessageCircle className="h-12 w-12" />} title="No posts yet" description="Be the first to share an update!" />
+        {isLoading ? (
+          <Card><CardContent className="p-8 text-center text-sm text-gray-500">Loading feed...</CardContent></Card>
+        ) : posts.length === 0 ? (
+          <EmptyState icon={<MessageCircle className="h-12 w-12" />} title="No posts yet" description="Updates from your AMC MEP network will appear here." />
         ) : (
           posts.map((post) => (
             <Card key={post.$id} className="overflow-hidden">
@@ -147,10 +166,7 @@ export default function FeedPage() {
                 <div className="flex items-center gap-3 mb-3">
                   <Avatar src={post.authorAvatar} name={post.authorName} size="sm" />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold text-sm text-gray-900">{post.authorName}</p>
-                      <Badge className={roleBadgeColors[post.authorRole]}>{post.authorRole}</Badge>
-                    </div>
+                    <p className="truncate font-semibold text-sm text-gray-900">{post.authorName}</p>
                     <p className="text-xs text-gray-400">{formatRelative(post.createdAt)}</p>
                   </div>
                   <button className="p-1 text-gray-400 hover:bg-gray-100 rounded">
@@ -173,9 +189,9 @@ export default function FeedPage() {
                 {/* Media Placeholders */}
                 {post.mediaUrls.length > 0 && (
                   <div className={`grid gap-2 mt-3 ${post.mediaUrls.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
-                    {post.mediaUrls.map((_, i) => (
-                      <div key={i} className="h-48 bg-gray-100 rounded-lg flex items-center justify-center border border-gray-200">
-                        <Image className="h-8 w-8 text-gray-300" />
+                    {post.mediaUrls.map((url, i) => (
+                      <div key={url || i} className="h-48 overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
+                        {url ? <img src={url} alt="" className="h-full w-full object-cover" /> : <Image className="m-auto mt-20 h-8 w-8 text-gray-300" />}
                       </div>
                     ))}
                   </div>
@@ -187,7 +203,7 @@ export default function FeedPage() {
                     <Heart className={`h-4 w-4 ${post.isLiked ? "fill-current" : ""}`} />
                     <span>{post.likes}</span>
                   </button>
-                  <button onClick={() => toggleComments(post.$id)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-gray-50 transition-colors">
+                  <button onClick={() => { toggleComments(post.$id); loadComments(post.$id); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-gray-50 transition-colors">
                     <MessageCircle className="h-4 w-4" />
                     <span>{post.commentsCount}</span>
                   </button>

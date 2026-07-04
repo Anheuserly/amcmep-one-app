@@ -1,37 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createRequest, fetchRequests, toServiceRequest } from "@/lib/services/appwriteServices";
 
-const mockRequests = [
-  { $id: "1", title: "HVAC Annual Maintenance", status: "in_progress", priority: "high", serviceType: "HVAC", siteAddress: "Office 301, Tech Park, Bangalore", customerId: "user1", estimatedCost: 5000, createdAt: "2024-03-15" },
-  { $id: "2", title: "Fire Extinguisher Inspection", status: "open", priority: "urgent", serviceType: "Fire Safety", siteAddress: "Warehouse B, Industrial Area, Bangalore", customerId: "user1", estimatedCost: 3000, createdAt: "2024-03-18" },
-];
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const userId = searchParams.get("userId") ?? "";
+  const customerId = searchParams.get("customerId") ?? "";
+  const phone = searchParams.get("phone") ?? "";
 
-export async function GET() {
-  return NextResponse.json({ success: true, requests: mockRequests, total: mockRequests.length });
+  try {
+    if (!userId && !customerId && !phone) {
+      return NextResponse.json({ success: true, requests: [], total: 0 });
+    }
+
+    const rows = await fetchRequests({ userId, customerId, phone });
+    const requests = rows.map(toServiceRequest);
+    return NextResponse.json({ success: true, requests, total: requests.length });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message || "Unable to load requests" }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, description, serviceType, siteAddress, priority } = body;
+    const title = body.title?.toString().trim() ?? "";
+    const serviceType = body.serviceType?.toString().trim() ?? "";
+    const siteAddress = body.siteAddress?.toString().trim() ?? "";
+    const now = new Date().toISOString();
 
     if (!title || !serviceType || !siteAddress) {
-      return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "Missing required request details" }, { status: 400 });
     }
 
-    const created = {
-      $id: `req-${Date.now()}`,
+    const created = await createRequest({
+      ...body,
       title,
-      description,
-      status: "open",
-      priority: priority || "medium",
       serviceType,
       siteAddress,
-      customerId: "user1",
-      estimatedCost: body.estimatedCost || 0,
-      createdAt: new Date().toISOString(),
-    };
+      status: body.status || "open",
+      priority: body.priority || "medium",
+      description: body.description?.toString().trim() || title,
+      createdAt: body.createdAt || now,
+      updatedAt: now,
+      isActive: true,
+    });
 
-    return NextResponse.json({ success: true, request: created }, { status: 201 });
+    return NextResponse.json({ success: true, request: toServiceRequest(created) }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message || "Invalid request" }, { status: 400 });
   }
