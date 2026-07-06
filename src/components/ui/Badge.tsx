@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 
 const badgeVariants = {
   default: "bg-gray-100 text-gray-700",
+  secondary: "bg-gray-100 text-gray-700",
   primary: "bg-primary-50 text-primary-700",
   success: "bg-green-50 text-green-700",
   warning: "bg-amber-50 text-amber-700",
