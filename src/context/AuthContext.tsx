@@ -35,6 +35,27 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+function guestProfile(user?: Models.User<Models.Preferences> | null): UserProfile {
+  const now = new Date().toISOString();
+  return {
+    $id: user?.$id ?? "guest",
+    userId: user?.$id ?? "guest",
+    customerId: "",
+    name: "Guest",
+    email: "",
+    phone: "",
+    avatar: "",
+    city: "",
+    state: "",
+    country: "India",
+    roles: ["guest"],
+    activeRole: "guest",
+    preferredLanguage: "en",
+    createdAt: user?.$createdAt ?? now,
+    updatedAt: user?.$updatedAt ?? now,
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     user: null,
@@ -63,6 +84,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }));
           return;
         }
+
+        setState((prev) => ({
+          ...prev,
+          user,
+          profile: guestProfile(user),
+          isAuthenticated: true,
+          activeRole: "guest",
+          roles: ["guest"],
+          isLoading: false,
+        }));
+        return;
       }
       const clientProfile = await fetchClientProfile(user.$id);
       const clientRoles = readStringArray(clientProfile ?? {}, "roles") as UserRole[];
@@ -105,11 +137,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading: false,
       }));
     } catch {
-      setState((prev) => ({
-        ...prev,
-        isLoading: false,
-        isAuthenticated: false,
-      }));
+      try {
+        await ensureAnonymousSession();
+        const user = await appwrite.account.get();
+        setState((prev) => ({
+          ...prev,
+          user,
+          profile: guestProfile(user),
+          isAuthenticated: true,
+          activeRole: "guest",
+          roles: ["guest"],
+          isLoading: false,
+        }));
+      } catch {
+        setState((prev) => ({
+          ...prev,
+          user: null,
+          profile: guestProfile(null),
+          isLoading: false,
+          isAuthenticated: true,
+          activeRole: "guest",
+          roles: ["guest"],
+        }));
+      }
     }
   }, []);
 
@@ -153,10 +203,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await clearCurrentSession();
     setState({
       user: null,
-      profile: null,
+      profile: guestProfile(null),
       session: null,
       isLoading: false,
-      isAuthenticated: false,
+      isAuthenticated: true,
       activeRole: "guest",
       roles: ["guest"],
     });
@@ -172,8 +222,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         activeRole: "guest",
       });
     } catch {}
-    await refreshProfile();
-  }, [refreshProfile]);
+    const user = await appwrite.account.get().catch(() => null);
+    setState((prev) => ({
+      ...prev,
+      user,
+      profile: guestProfile(user),
+      session: null,
+      isLoading: false,
+      isAuthenticated: true,
+      activeRole: "guest",
+      roles: ["guest"],
+    }));
+  }, []);
 
   const completeQrProfileSession = useCallback((profile: UserProfile) => {
     setState((prev) => ({

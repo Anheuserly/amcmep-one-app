@@ -8,6 +8,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import {
   Bell,
   ChevronDown,
+  LogIn,
   Loader2,
   Menu,
   Search,
@@ -28,7 +29,7 @@ interface SearchResult {
 
 export function Navbar({ onMenuClick }: NavbarProps) {
   const router = useRouter();
-  const { profile } = useAuth();
+  const { profile, activeRole } = useAuth();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -134,12 +135,22 @@ export function Navbar({ onMenuClick }: NavbarProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          <button onClick={() => router.push("/activity")} className="relative rounded-xl p-2 text-slate-600 hover:bg-slate-100" aria-label="Activity">
-            <Bell className="h-5 w-5" />
-            <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-red-500" />
-          </button>
+          {activeRole === "guest" ? (
+            <button
+              onClick={() => router.push("/login")}
+              className="hidden h-10 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white shadow-sm shadow-blue-100 transition hover:bg-blue-700 sm:flex"
+            >
+              <LogIn className="h-4 w-4" />
+              Sign in
+            </button>
+          ) : (
+            <button onClick={() => router.push("/activity")} className="relative rounded-xl p-2 text-slate-600 hover:bg-slate-100" aria-label="Activity">
+              <Bell className="h-5 w-5" />
+              <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-red-500" />
+            </button>
+          )}
 
-          <button onClick={() => router.push("/profile")} className="flex items-center gap-2 rounded-xl p-1.5 hover:bg-slate-100" aria-label="Open profile">
+          <button onClick={() => router.push(activeRole === "guest" ? "/login" : "/profile")} className="flex items-center gap-2 rounded-xl p-1.5 hover:bg-slate-100" aria-label="Open profile">
             <Avatar src={profile?.avatar} name={profile?.name || "User"} size="sm" />
             <ChevronDown className="hidden h-4 w-4 text-slate-400 sm:block" />
           </button>

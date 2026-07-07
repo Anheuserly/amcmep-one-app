@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Sidebar } from "./Sidebar";
 import { Navbar } from "./Navbar";
 import { RoleGuard } from "./RoleGuard";
+import { GuestAuthPrompt } from "./GuestAuthPrompt";
 import type { UserRole } from "@/types";
 
 interface AppShellProps {
@@ -36,6 +37,7 @@ export function AppShell({ children, allowedRoles }: AppShellProps) {
             </div>
           </main>
         </div>
+        <GuestAuthPrompt />
       </div>
     </RoleGuard>
   );

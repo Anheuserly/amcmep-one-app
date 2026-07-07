@@ -13,17 +13,15 @@ interface RoleGuardProps {
 
 export function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
   const router = useRouter();
-  const { isLoading, isAuthenticated, activeRole } = useAuth();
+  const { isLoading, activeRole } = useAuth();
 
   useEffect(() => {
     if (!isLoading) {
-      if (!isAuthenticated) {
-        router.push("/login");
-      } else if (allowedRoles && !allowedRoles.includes(activeRole)) {
+      if (allowedRoles && !allowedRoles.includes(activeRole)) {
         router.push("/dashboard");
       }
     }
-  }, [isLoading, isAuthenticated, activeRole, allowedRoles, router]);
+  }, [isLoading, activeRole, allowedRoles, router]);
 
   if (isLoading) {
     return (
@@ -31,10 +29,6 @@ export function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
         <LoadingSpinner size="lg" />
       </div>
     );
-  }
-
-  if (!isAuthenticated) {
-    return null;
   }
 
   if (allowedRoles && !allowedRoles.includes(activeRole)) {
