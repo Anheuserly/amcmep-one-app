@@ -1,6 +1,12 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import { CommunityHome } from "@/components/feed/CommunityHome";
+import { AppShell } from "@/components/layout/AppShell";
 
 export default function HomePage() {
-  // Redirect to dashboard for now; in production this could be a landing page
-  redirect("/dashboard");
+  return (
+    <AppShell>
+      <CommunityHome />
+    </AppShell>
+  );
 }

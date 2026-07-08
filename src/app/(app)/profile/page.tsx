@@ -6,7 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 import { Input } from "@/components/ui/Input";
-import { updateClientProfile } from "@/lib/services/appwriteServices";
+import {
+  isPublicUserIdAvailable,
+  normalizePublicUserId,
+  updateClientProfile,
+  validatePublicUserId,
+} from "@/lib/services/appwriteServices";
 import toast from "react-hot-toast";
 import {
   Mail,
@@ -17,6 +22,7 @@ import {
   Camera,
   Copy,
   Check,
+  UserCircle,
 } from "lucide-react";
 
 export default function ProfilePage() {
@@ -26,11 +32,14 @@ export default function ProfilePage() {
   const [name, setName] = useState(profile?.name || "");
   const [phone, setPhone] = useState(profile?.phone || "");
   const [city, setCity] = useState(profile?.city || "");
+  const [publicUserId, setPublicUserId] = useState(profile?.customerId || "");
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     setName(profile?.name || "");
     setPhone(profile?.phone || "");
     setCity(profile?.city || "");
+    setPublicUserId(profile?.customerId || "");
   }, [profile]);
 
   const handleCopyReferral = () => {
@@ -44,11 +53,23 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     if (!profile?.$id) return;
+    const publicIdCheck = validatePublicUserId(publicUserId);
+    if (!publicIdCheck.valid) {
+      toast.error(publicIdCheck.message);
+      return;
+    }
+    setIsSaving(true);
     try {
+      const available = await isPublicUserIdAvailable(publicIdCheck.value, profile.$id);
+      if (!available) {
+        toast.error("This user ID is already taken");
+        return;
+      }
       await updateClientProfile(profile.$id, {
         name: name.trim(),
         phone: phone.trim(),
         city: city.trim(),
+        customerId: publicIdCheck.value,
         updatedAt: new Date().toISOString(),
       });
       await refreshProfile();
@@ -56,6 +77,8 @@ export default function ProfilePage() {
       toast.success("Profile updated");
     } catch {
       toast.error("Unable to update profile");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -79,6 +102,11 @@ export default function ProfilePage() {
               {isEditing ? (
                 <div className="grid gap-2 max-w-xs mx-auto sm:mx-0">
                   <Input value={name} onChange={(e) => setName(e.target.value)} />
+                  <Input
+                    value={publicUserId}
+                    onChange={(e) => setPublicUserId(normalizePublicUserId(e.target.value))}
+                    placeholder="Public user ID"
+                  />
                   <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone number" />
                   <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="City" />
                 </div>
@@ -95,7 +123,7 @@ export default function ProfilePage() {
                   <Button variant="outline" size="sm" onClick={() => setIsEditing(false)}>
                     Cancel
                   </Button>
-                  <Button size="sm" onClick={handleSave}>
+                  <Button size="sm" onClick={handleSave} disabled={isSaving}>
                     Save
                   </Button>
                 </>
@@ -121,6 +149,13 @@ export default function ProfilePage() {
             <div>
               <p className="text-sm font-medium text-gray-900">Email</p>
               <p className="text-sm text-gray-500">{profile?.email || "Add email in the app"}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <UserCircle className="h-5 w-5 text-gray-400" />
+            <div>
+              <p className="text-sm font-medium text-gray-900">User ID</p>
+              <p className="text-sm text-gray-500">{profile?.customerId || "Set a public user ID"}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">

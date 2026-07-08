@@ -18,7 +18,7 @@ export function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
   useEffect(() => {
     if (!isLoading) {
       if (allowedRoles && !allowedRoles.includes(activeRole)) {
-        router.push("/dashboard");
+        router.push("/");
       }
     }
   }, [isLoading, activeRole, allowedRoles, router]);

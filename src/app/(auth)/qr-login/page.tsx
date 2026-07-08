@@ -55,7 +55,7 @@ export default function QrLoginPage() {
             const profile = await consumeApprovedQrLogin(latest.token);
             completeQrProfileSession(profile);
             toast.success("Device login approved");
-            router.replace("/dashboard");
+            router.replace("/");
           } else if (latest.status === "used" || latest.status === "expired") {
             stopPolling();
             setError(latest.status === "used" ? "This QR was already used." : "This QR expired. Generate a new code.");

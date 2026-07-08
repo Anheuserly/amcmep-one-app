@@ -17,6 +17,7 @@ import {
 
 interface NavbarProps {
   onMenuClick: () => void;
+  showMenu?: boolean;
 }
 
 interface SearchResult {
@@ -27,7 +28,7 @@ interface SearchResult {
   vertical: string;
 }
 
-export function Navbar({ onMenuClick }: NavbarProps) {
+export function Navbar({ onMenuClick, showMenu = true }: NavbarProps) {
   const router = useRouter();
   const { profile, activeRole } = useAuth();
   const [query, setQuery] = useState("");
@@ -77,10 +78,12 @@ export function Navbar({ onMenuClick }: NavbarProps) {
     <header className="fixed left-0 right-0 top-0 z-50 h-16 border-b border-slate-200 bg-white/95 backdrop-blur">
       <div className="flex h-full items-center justify-between gap-3 px-4 lg:px-6">
         <div className="flex min-w-0 items-center gap-3">
-          <button onClick={onMenuClick} className="rounded-xl p-2 text-slate-600 hover:bg-slate-100 lg:hidden" aria-label="Open navigation">
-            <Menu className="h-5 w-5" />
-          </button>
-          <button onClick={() => router.push("/dashboard")} className="flex min-w-0 items-center gap-2">
+          {showMenu && (
+            <button onClick={onMenuClick} className="rounded-xl p-2 text-slate-600 hover:bg-slate-100 lg:hidden" aria-label="Open navigation">
+              <Menu className="h-5 w-5" />
+            </button>
+          )}
+          <button onClick={() => router.push("/")} className="flex min-w-0 items-center gap-2">
             <Image src="/amcmep-one-icon.png" alt="AMC MEP 24x7 One" width={36} height={36} className="rounded-xl shadow-sm" priority />
             <span className="hidden truncate text-lg font-black tracking-tight text-slate-950 sm:block">AMC MEP 24x7</span>
           </button>

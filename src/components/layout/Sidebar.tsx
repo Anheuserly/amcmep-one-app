@@ -10,7 +10,6 @@ import {
   Home,
   LogOut,
   MessageSquare,
-  Newspaper,
   Settings,
   ShieldCheck,
   ShoppingCart,
@@ -19,41 +18,17 @@ import {
 } from "lucide-react";
 import type { UserRole } from "@/types";
 
-const navGroups: Array<{
-  label: string;
-  items: Array<{ label: string; href: string; icon: React.ComponentType<{ className?: string }>; roles: UserRole[] }>;
-}> = [
-  {
-    label: "Explore",
-    items: [
-      { label: "Home", href: "/dashboard", icon: Home, roles: ["customer", "partner", "administrator", "guest"] },
-      { label: "Assistant", href: "/assistant", icon: MessageSquare, roles: ["customer", "partner", "administrator", "guest"] },
-    ],
-  },
-  {
-    label: "Connect",
-    items: [
-      { label: "Messages", href: "/chats", icon: MessageSquare, roles: ["customer", "partner", "administrator"] },
-      { label: "Community", href: "/feed", icon: Newspaper, roles: ["customer", "partner", "administrator", "guest"] },
-      { label: "Market", href: "/marketplace", icon: ShoppingCart, roles: ["customer", "partner", "administrator", "guest"] },
-    ],
-  },
-  {
-    label: "Services",
-    items: [
-      { label: "Requests", href: "/requests", icon: ClipboardList, roles: ["customer", "partner", "administrator"] },
-      { label: "AMC Care", href: "/amc", icon: ShieldCheck, roles: ["customer", "partner", "administrator"] },
-      { label: "Workspace", href: "/workspace", icon: Briefcase, roles: ["partner", "administrator"] },
-    ],
-  },
-  {
-    label: "You",
-    items: [
-      { label: "Profile", href: "/profile", icon: UserCircle, roles: ["customer", "partner", "administrator", "guest"] },
-      { label: "Activity", href: "/activity", icon: Bell, roles: ["customer", "partner", "administrator"] },
-      { label: "Settings", href: "/settings", icon: Settings, roles: ["customer", "partner", "administrator", "guest"] },
-    ],
-  },
+const navItems: Array<{ label: string; href: string; icon: React.ComponentType<{ className?: string }>; roles: UserRole[] }> = [
+  { label: "Home", href: "/", icon: Home, roles: ["customer", "partner", "administrator"] },
+  { label: "Assistant", href: "/assistant", icon: MessageSquare, roles: ["customer", "partner", "administrator"] },
+  { label: "Messages", href: "/chats", icon: MessageSquare, roles: ["customer", "partner", "administrator"] },
+  { label: "Market", href: "/marketplace", icon: ShoppingCart, roles: ["customer", "partner", "administrator"] },
+  { label: "Requests", href: "/requests", icon: ClipboardList, roles: ["customer", "partner", "administrator"] },
+  { label: "AMC Care", href: "/amc", icon: ShieldCheck, roles: ["customer", "partner", "administrator"] },
+  { label: "Workspace", href: "/workspace", icon: Briefcase, roles: ["partner", "administrator"] },
+  { label: "Profile", href: "/profile", icon: UserCircle, roles: ["customer", "partner", "administrator"] },
+  { label: "Activity", href: "/activity", icon: Bell, roles: ["customer", "partner", "administrator"] },
+  { label: "Settings", href: "/settings", icon: Settings, roles: ["customer", "partner", "administrator"] },
 ];
 
 interface SidebarProps {
@@ -71,12 +46,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     onClose();
   };
 
-  const filteredGroups = navGroups
-    .map((group) => ({
-      ...group,
-      items: group.items.filter((item) => item.roles.includes(activeRole)),
-    }))
-    .filter((group) => group.items.length > 0);
+  const filteredItems = navItems.filter((item) => item.roles.includes(activeRole));
 
   return (
     <>
@@ -108,13 +78,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
 
           <nav className="flex-1 overflow-y-auto px-3 py-4">
-            <div className="space-y-6">
-              {filteredGroups.map((group) => (
-                <section key={group.label}>
-                  <p className="mb-2 px-3 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">{group.label}</p>
-                  <ul className="space-y-1">
-                    {group.items.map((item) => {
-                      const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`));
+            <ul className="space-y-1">
+              {filteredItems.map((item) => {
+                      const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`));
                       return (
                         <li key={item.href}>
                           <button
@@ -134,10 +100,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                         </li>
                       );
                     })}
-                  </ul>
-                </section>
-              ))}
-            </div>
+            </ul>
           </nav>
 
           {activeRole === "guest" && (

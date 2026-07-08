@@ -14,8 +14,9 @@ interface AppShellProps {
 }
 
 export function AppShell({ children, allowedRoles }: AppShellProps) {
-  const { isLoading } = useAuth();
+  const { isLoading, activeRole } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const showSidebar = activeRole !== "guest";
 
   if (isLoading) {
     return (
@@ -28,10 +29,10 @@ export function AppShell({ children, allowedRoles }: AppShellProps) {
   return (
     <RoleGuard allowedRoles={allowedRoles}>
       <div className="min-h-screen bg-surface">
-        <Navbar onMenuClick={() => setSidebarOpen(true)} />
+        <Navbar onMenuClick={() => setSidebarOpen(true)} showMenu={showSidebar} />
         <div className="flex">
-          <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-          <main className="flex-1 lg:ml-72 min-h-[calc(100vh-4rem)] pt-16">
+          {showSidebar && <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />}
+          <main className={`min-h-[calc(100vh-4rem)] flex-1 pt-16 ${showSidebar ? "lg:ml-72" : ""}`}>
             <div className="p-4 lg:p-8 max-w-7xl mx-auto">
               {children}
             </div>

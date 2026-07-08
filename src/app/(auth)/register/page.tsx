@@ -19,7 +19,7 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated && activeRole !== "guest") router.replace("/dashboard");
+    if (isAuthenticated && activeRole !== "guest") router.replace("/");
   }, [activeRole, isAuthenticated, router]);
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -44,7 +44,7 @@ export default function RegisterPage() {
     try {
       await register(email, password, name);
       toast.success("Account created");
-      router.replace("/dashboard");
+      router.replace("/");
     } catch (err: any) {
       toast.error(err.message || "Unable to create account.");
     } finally {

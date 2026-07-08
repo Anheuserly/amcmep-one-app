@@ -17,7 +17,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated && activeRole !== "guest") router.replace("/dashboard");
+    if (isAuthenticated && activeRole !== "guest") router.replace("/");
   }, [activeRole, isAuthenticated, router]);
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -30,7 +30,7 @@ export default function LoginPage() {
     try {
       await login(email, password);
       toast.success("Welcome back");
-      router.replace("/dashboard");
+      router.replace("/");
     } catch (err: any) {
       toast.error(err.message || "Email or password is incorrect.");
     } finally {

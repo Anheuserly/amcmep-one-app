@@ -214,16 +214,25 @@ export function toFeedPost(doc: any, currentUserId = ""): FeedPost {
   const mediaUrl = readString(doc, "mediaUrl");
   const mediaUrls = readStringArray(doc, "mediaUrls");
   if (mediaUrl) mediaUrls.unshift(mediaUrl);
+  const contentType = readString(doc, "contentType").toLowerCase();
+  const mediaType = readString(doc, "mediaType").toLowerCase();
+  const resolvedMediaType =
+    mediaType ||
+    (contentType.includes("video") || mediaUrl.match(/\.(mp4|mov|webm|mkv)(\?|$)/i)
+      ? "video"
+      : contentType.includes("image") || mediaUrl
+      ? "image"
+      : "");
 
   return {
     $id: doc.$id,
-    authorId: readString(doc, "userId") || readString(doc, "authorUserId") || readString(doc, "authorId"),
+    authorId: readString(doc, "user_id") || readString(doc, "userId") || readString(doc, "authorUserId") || readString(doc, "authorId"),
     authorName: readString(doc, "author") || readString(doc, "authorName") || readString(doc, "name") || "AMC MEP user",
     authorAvatar: readString(doc, "authorAvatar") || undefined,
     authorRole: (readString(doc, "authorRole") || readString(doc, "role") || "customer") as UserRole,
     content: readString(doc, "content") || readString(doc, "text") || readString(doc, "description"),
     mediaUrls: mediaUrls.filter(Boolean),
-    mediaType: (readString(doc, "mediaType") || undefined) as FeedPost["mediaType"],
+    mediaType: (resolvedMediaType || undefined) as FeedPost["mediaType"],
     likes: readInt(doc, "likes"),
     likedBy,
     commentsCount: readInt(doc, "commentsCount"),
@@ -487,6 +496,13 @@ export async function fetchFeed({ limit = 20, cursorAfter }: { limit?: number; c
   return resp.documents.map((doc) => { const mediaUrl = readString(doc, "mediaUrl"); if (mediaUrl && !mediaUrl.startsWith("http")) return { ...doc, mediaUrl: fileViewUrl(BUCKETS.feed, mediaUrl) }; return doc; });
 }
 
+export async function fetchFeedPost(postId: string) {
+  const doc = await appwrite.databases.getDocument(DB_ID, COLLECTIONS.feed, postId);
+  const mediaUrl = readString(doc, "mediaUrl");
+  if (mediaUrl && !mediaUrl.startsWith("http")) return { ...doc, mediaUrl: fileViewUrl(BUCKETS.feed, mediaUrl) };
+  return doc;
+}
+
 export async function toggleFeedLike(postId: string, currentUserId: string, likedBy: string[], likes: number) {
   const liked = likedBy.includes(currentUserId);
   const updatedLikedBy = liked ? likedBy.filter((id) => id !== currentUserId) : [...likedBy, currentUserId];
@@ -575,6 +591,31 @@ export async function fetchClientProfile(userId: string) {
 
 export async function updateClientProfile(docId: string, data: Record<string, any>) {
   return appwrite.databases.updateDocument(DB_ID, COLLECTIONS.clients, docId, data);
+}
+
+export function normalizePublicUserId(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, "-");
+}
+
+export function validatePublicUserId(value: string) {
+  const normalized = normalizePublicUserId(value);
+  if (normalized.length < 4 || normalized.length > 24) {
+    return { valid: false, value: normalized, message: "Use 4 to 24 characters." };
+  }
+  if (!/^[a-z0-9][a-z0-9._-]*[a-z0-9]$/.test(normalized)) {
+    return { valid: false, value: normalized, message: "Use letters, numbers, dots, dashes, or underscores." };
+  }
+  return { valid: true, value: normalized, message: "" };
+}
+
+export async function isPublicUserIdAvailable(customerId: string, currentDocId?: string) {
+  const normalized = normalizePublicUserId(customerId);
+  if (!normalized) return false;
+  const resp = await appwrite.databases.listDocuments(DB_ID, COLLECTIONS.clients, [
+    Query.equal("customerId", normalized),
+    Query.limit(2),
+  ]);
+  return resp.documents.every((doc) => doc.$id === currentDocId);
 }
 
 export async function fetchBusinesses({ ownerId, limit = 100 }: { ownerId?: string; limit?: number } = {}) {

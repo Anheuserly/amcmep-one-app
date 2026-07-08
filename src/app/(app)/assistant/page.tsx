@@ -84,7 +84,7 @@ export default function AssistantPage() {
     { title: "Requests", description: `${stats.activeRequests} active requests`, icon: ClipboardList, color: "bg-blue-50 text-blue-600", href: "/requests" },
     { title: "AMC", description: `${stats.activeAmc} active contracts`, icon: ShieldCheck, color: "bg-green-50 text-green-600", href: "/amc" },
     { title: "Marketplace", description: `${stats.marketplaceItems} live listings`, icon: ShoppingCart, color: "bg-orange-50 text-orange-600", href: "/marketplace" },
-    { title: "Feed", description: `${stats.feedPosts} recent posts`, icon: Newspaper, color: "bg-pink-50 text-pink-600", href: "/feed" },
+    { title: "Feed", description: `${stats.feedPosts} recent posts`, icon: Newspaper, color: "bg-pink-50 text-pink-600", href: "/" },
     { title: "Visits", description: `${stats.upcomingVisits} scheduled visits`, icon: CalendarDays, color: "bg-teal-50 text-teal-600", href: "/amc" },
   ], [stats]);
 
