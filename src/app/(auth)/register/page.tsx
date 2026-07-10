@@ -61,17 +61,16 @@ export default function RegisterPage() {
 
   return (
     <div className="animate-fade-in">
-      <button onClick={() => router.push("/login")} className="mb-5 flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-800">
+      <button onClick={() => router.push("/login")} className="mb-5 flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900">
         <ArrowLeft className="h-4 w-4" />
         Back to login
       </button>
 
-      <Card className="border-slate-200 shadow-xl shadow-slate-200/60">
-        <CardContent className="p-6 sm:p-7">
+      <Card className="rounded-lg border-slate-200 bg-white shadow-xl shadow-slate-200/50">
+        <CardContent className="p-5 sm:p-8">
           <div className="mb-6">
-            <img src="/amcmep-one-icon.png" alt="AMC MEP 24x7" className="mb-4 h-12 w-12 rounded-2xl shadow-sm" />
-            <h1 className="text-2xl font-black tracking-tight text-slate-950">Create your profile</h1>
-            <p className="mt-1 text-sm leading-6 text-slate-500">This creates your web account and links a customer profile in AMC MEP 24x7 One.</p>
+            <h1 className="text-3xl font-black text-slate-950">Create account</h1>
+            <p className="mt-2 text-sm leading-6 text-slate-500">Set up your secure access to AMC MEP 24x7 One.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -83,7 +82,7 @@ export default function RegisterPage() {
             )}
             <Input
               label="Full name"
-              placeholder="Your full name"
+              placeholder="Enter your full name"
               value={name}
               onChange={(event) => setName(event.target.value)}
               autoComplete="name"
@@ -92,7 +91,7 @@ export default function RegisterPage() {
             <Input
               label="Email address"
               type="email"
-              placeholder="you@example.com"
+              placeholder="Enter your email address"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               autoComplete="email"
@@ -101,7 +100,7 @@ export default function RegisterPage() {
             <Input
               label="Password"
               type="password"
-              placeholder="At least 8 characters"
+              placeholder="Create a secure password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               autoComplete="new-password"
@@ -110,7 +109,7 @@ export default function RegisterPage() {
             <Input
               label="Confirm password"
               type="password"
-              placeholder="Repeat password"
+              placeholder="Enter the password again"
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
               autoComplete="new-password"
@@ -122,7 +121,7 @@ export default function RegisterPage() {
             </Button>
           </form>
 
-          <p className="mt-5 text-center text-sm text-slate-500">
+          <p className="mt-6 border-t border-slate-100 pt-5 text-center text-sm text-slate-500">
             Already registered?{" "}
             <button onClick={() => router.push("/login")} className="font-semibold text-blue-700 hover:text-blue-800">
               Sign in

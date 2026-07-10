@@ -1,40 +1,60 @@
+import { ShieldCheck } from "lucide-react";
+
 export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-[#f5f7fb] px-4 py-6 text-gray-950">
-      <div className="mx-auto grid min-h-[calc(100vh-3rem)] w-full max-w-6xl items-center gap-8 lg:grid-cols-[1fr_440px]">
-        <section className="hidden lg:block">
-          <div className="max-w-xl">
-            <div className="mb-8 flex items-center gap-3">
-              <img src="/amcmep-one-icon.png" alt="AMC MEP 24x7" className="h-12 w-12 rounded-2xl shadow-sm" />
-              <div>
-                <p className="text-sm font-semibold text-blue-700">AMC MEP 24x7 One</p>
-                <h1 className="text-xl font-black tracking-tight text-slate-950">Service, AMC, and support workspace</h1>
-              </div>
-            </div>
-            <h2 className="text-5xl font-black leading-[1.04] tracking-tight text-slate-950">
-              Keep every service request, AMC update, and chat in one clean workspace.
-            </h2>
-            <p className="mt-5 max-w-lg text-base leading-7 text-slate-600">
-              Continue with your email account or approve this web login from the verified mobile app using QR.
-            </p>
-            <div className="mt-8 grid grid-cols-3 gap-3">
-              {["Requests", "AMC", "Chats"].map((item) => (
-                <div key={item} className="rounded-2xl border border-white bg-white/80 p-4 shadow-sm">
-                  <p className="text-sm font-bold text-slate-900">{item}</p>
-                  <p className="mt-1 text-xs text-slate-500">Live from your account</p>
-                </div>
-              ))}
+    <main className="min-h-screen bg-white text-slate-950 lg:grid lg:grid-cols-[minmax(0,1.08fr)_minmax(430px,0.92fr)]">
+      <section className="relative hidden min-h-screen overflow-hidden bg-slate-950 lg:block">
+        <img
+          src="/auth-service-network.png"
+          alt="Facility engineer reviewing building services"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 bg-slate-950/45" />
+
+        <div className="relative z-10 flex min-h-screen flex-col justify-between p-10 xl:p-14">
+          <div className="flex items-center gap-3 text-white">
+            <img
+              src="/amcmep-one-icon.png"
+              alt="AMC MEP 24x7"
+              className="h-11 w-11 rounded-lg border border-white/20 shadow-lg"
+            />
+            <div>
+              <p className="text-sm font-black">AMC MEP 24x7 One</p>
+              <p className="text-xs text-white/70">Service network</p>
             </div>
           </div>
-        </section>
-        <div className="mx-auto w-full max-w-[440px]">
+
+          <div className="max-w-xl pb-4 text-white">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-lg border border-white/20 bg-slate-950/35 px-3 py-2 text-xs font-bold backdrop-blur-sm">
+              <ShieldCheck className="h-4 w-4 text-emerald-300" />
+              Secure account access
+            </div>
+            <h1 className="text-4xl font-black leading-tight sm:text-5xl xl:text-6xl">
+              Your service network, always within reach.
+            </h1>
+            <p className="mt-5 max-w-lg text-base leading-7 text-white/80">
+              Continue conversations, follow maintenance activity, and stay connected with the people handling your services.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="flex min-h-screen items-center justify-center bg-[#f7f8fb] px-4 py-5 sm:px-8 sm:py-8 lg:px-10">
+        <div className="w-full max-w-[440px]">
+          <div className="mb-5 flex items-center gap-3 sm:mb-7 lg:hidden">
+            <img src="/amcmep-one-icon.png" alt="AMC MEP 24x7" className="h-11 w-11 rounded-lg shadow-sm" />
+            <div>
+              <p className="text-sm font-black text-slate-950">AMC MEP 24x7 One</p>
+              <p className="text-xs text-slate-500">Secure account access</p>
+            </div>
+          </div>
           {children}
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }
