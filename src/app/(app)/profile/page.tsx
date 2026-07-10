@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -26,6 +27,7 @@ import {
 } from "lucide-react";
 
 export default function ProfilePage() {
+  const router = useRouter();
   const { profile, refreshProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -44,10 +46,10 @@ export default function ProfilePage() {
 
   const handleCopyReferral = () => {
     if (profile?.referralCode) {
-      navigator.clipboard.writeText(profile.referralCode);
+      navigator.clipboard.writeText(`${window.location.origin}/r/${profile.referralCode}`);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-      toast.success("Referral code copied!");
+      toast.success("Referral link copied");
     }
   };
 
@@ -198,6 +200,7 @@ export default function ProfilePage() {
               <Button variant="outline" size="sm" onClick={handleCopyReferral}>
                 {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               </Button>
+              <Button size="sm" onClick={() => router.push("/rewards")}>Open rewards</Button>
             </div>
           </CardContent>
         </Card>

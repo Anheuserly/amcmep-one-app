@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { fetchFeedPost, toFeedPost } from "@/lib/services/appwriteServices";
 import { formatRelative } from "@/lib/utils";
 import type { FeedPost } from "@/types";
-import { ArrowLeft, ExternalLink, MessageCircle, Repeat, Share2 } from "lucide-react";
+import { ArrowLeft, ExternalLink, Heart, MessageCircle, Repeat, Share2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 function postShareUrl(postId: string) {
@@ -49,11 +49,7 @@ export function SharedFeedPost() {
   const sharePost = async () => {
     try {
       if (navigator.share) {
-        await navigator.share({
-          title: "AMC MEP 24x7 update",
-          text: post?.content || "AMC MEP 24x7 update",
-          url: shareUrl,
-        });
+        await navigator.share({ url: shareUrl });
       } else {
         await navigator.clipboard.writeText(shareUrl);
         toast.success("Post link copied");
@@ -62,16 +58,22 @@ export function SharedFeedPost() {
   };
 
   return (
-    <div className="mx-auto max-w-2xl animate-fade-in space-y-4">
-      <div className="flex items-center justify-between gap-3">
+    <div className="mx-auto max-w-3xl animate-fade-in space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm">
         <Button variant="ghost" onClick={() => router.push("/")}>
           <ArrowLeft className="h-4 w-4" />
-          Home
+          Back to home
         </Button>
-        <Button variant="outline" onClick={sharePost}>
-          <Share2 className="h-4 w-4" />
-          Share
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={sharePost}>
+            <Share2 className="h-4 w-4" />
+            Share
+          </Button>
+          <Button onClick={() => router.push("/")}>
+            Open app
+            <ExternalLink className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -91,37 +93,52 @@ export function SharedFeedPost() {
           }
         />
       ) : (
-        <Card className="overflow-hidden border-slate-200 shadow-sm">
-          <CardContent className="p-4 sm:p-5">
-            <div className="mb-4 flex items-center gap-3">
-              <Avatar src={post.authorAvatar} name={post.authorName} size="md" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-black text-slate-950">{post.authorName}</p>
-                <p className="text-xs text-slate-400">{formatRelative(post.createdAt)}</p>
+        <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
+          <CardContent className="p-0">
+            <div className="border-b border-slate-100 bg-gradient-to-br from-slate-50 to-white p-5 sm:p-6">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-600">AMC MEP 24x7 Update</p>
+              <div className="mt-4 flex items-center gap-3">
+                <Avatar src={post.authorAvatar} name={post.authorName} size="lg" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-base font-black text-slate-950">{post.authorName}</p>
+                  <p className="text-sm text-slate-500">{formatRelative(post.createdAt)}</p>
+                </div>
               </div>
             </div>
 
-            {post.content && <p className="whitespace-pre-wrap text-sm leading-6 text-slate-800">{post.content}</p>}
+            <div className="p-4 sm:p-6">
+              {post.content ? (
+                <p className="whitespace-pre-wrap text-base leading-7 text-slate-800">{post.content}</p>
+              ) : (
+                <p className="text-sm text-slate-500">This update was shared from AMC MEP 24x7.</p>
+              )}
 
-            {post.mediaUrls.length > 0 && (
-              <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-950">
-                {post.mediaType === "video" || post.mediaUrls[0]?.match(/\.(mp4|mov|webm|mkv)(\?|$)/i) ? (
-                  <video src={post.mediaUrls[0]} controls playsInline className="max-h-[70vh] w-full bg-slate-950" />
-                ) : (
-                  <img src={post.mediaUrls[0]} alt="" className="max-h-[70vh] w-full object-contain" />
-                )}
+              {post.mediaUrls.length > 0 && (
+                <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-slate-950">
+                  {post.mediaType === "video" || post.mediaUrls[0]?.match(/\.(mp4|mov|webm|mkv)(\?|$)/i) ? (
+                    <video src={post.mediaUrls[0]} controls playsInline className="max-h-[70vh] w-full bg-slate-950" />
+                  ) : (
+                    <img src={post.mediaUrls[0]} alt="AMC MEP 24x7 post media" className="max-h-[70vh] w-full object-contain" />
+                  )}
+                </div>
+              )}
+
+              <div className="mt-5 grid grid-cols-3 gap-2 rounded-2xl border border-slate-100 bg-slate-50 p-2 text-sm text-slate-600">
+                <span className="inline-flex items-center justify-center gap-1 rounded-xl bg-white px-3 py-2 font-bold">
+                  <Heart className="h-4 w-4 text-rose-500" /> {post.likes}
+                </span>
+                <span className="inline-flex items-center justify-center gap-1 rounded-xl bg-white px-3 py-2 font-bold">
+                  <MessageCircle className="h-4 w-4 text-blue-600" /> {post.commentsCount}
+                </span>
+                <span className="inline-flex items-center justify-center gap-1 rounded-xl bg-white px-3 py-2 font-bold">
+                  <Repeat className="h-4 w-4 text-emerald-600" /> {post.reposts}
+                </span>
               </div>
-            )}
 
-            <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4 text-sm text-slate-500">
-              <span>{post.likes} likes</span>
-              <span>{post.commentsCount} comments</span>
-              <span className="inline-flex items-center gap-1"><Repeat className="h-4 w-4" /> {post.reposts} reposts</span>
-            </div>
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <Button onClick={() => router.push("/login")}>Sign in to interact</Button>
-              <Button variant="outline" onClick={() => router.push("/")}>Open home feed</Button>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <Button onClick={() => router.push("/login")}>Sign in to interact</Button>
+                <Button variant="outline" onClick={() => router.push("/")}>Open home feed</Button>
+              </div>
             </div>
           </CardContent>
         </Card>

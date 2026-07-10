@@ -104,7 +104,17 @@ export async function isEmailProfileRegistered(email: string) {
   return rows.documents.length > 0;
 }
 
-export async function linkEmailClientProfile({ accountId, email, name }: { accountId: string; email: string; name?: string }) {
+export async function linkEmailClientProfile({
+  accountId,
+  email,
+  name,
+  referrerId,
+}: {
+  accountId: string;
+  email: string;
+  name?: string;
+  referrerId?: string;
+}) {
   const normalizedEmail = email.trim().toLowerCase();
   const now = new Date().toISOString();
   let existing: any | undefined;
@@ -135,6 +145,9 @@ export async function linkEmailClientProfile({ accountId, email, name }: { accou
     roles: readStringArray(existing ?? {}, "roles").length ? readStringArray(existing, "roles") : ["customer"],
     activeRole: readString(existing ?? {}, "activeRole") || "customer",
     customerEnabled: true,
+    ...(referrerId?.trim() && !existing?.referrerId
+      ? { referrerId: referrerId.trim().toUpperCase() }
+      : {}),
   };
 
   if (existing) {

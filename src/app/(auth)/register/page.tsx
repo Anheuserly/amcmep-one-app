@@ -17,10 +17,16 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [referralCode, setReferralCode] = useState("");
 
   useEffect(() => {
     if (isAuthenticated && activeRole !== "guest") router.replace("/");
   }, [activeRole, isAuthenticated, router]);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem("amcmep_referral_code") || "";
+    setReferralCode(saved);
+  }, []);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -42,7 +48,8 @@ export default function RegisterPage() {
     }
     setIsLoading(true);
     try {
-      await register(email, password, name);
+      await register(email, password, name, referralCode || undefined);
+      window.localStorage.removeItem("amcmep_referral_code");
       toast.success("Account created");
       router.replace("/");
     } catch (err: any) {
@@ -68,6 +75,12 @@ export default function RegisterPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {referralCode && (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
+                <p className="text-xs font-bold uppercase text-emerald-700">Referral applied</p>
+                <p className="mt-1 font-mono text-sm font-semibold text-emerald-950">{referralCode}</p>
+              </div>
+            )}
             <Input
               label="Full name"
               placeholder="Your full name"

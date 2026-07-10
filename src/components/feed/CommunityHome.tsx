@@ -115,11 +115,7 @@ export function CommunityHome() {
     const url = `${window.location.origin}/p/${post.$id}`;
     try {
       if (navigator.share) {
-        await navigator.share({
-          title: "AMC MEP 24x7 update",
-          text: post.content || "AMC MEP 24x7 update",
-          url,
-        });
+        await navigator.share({ url });
       } else {
         await navigator.clipboard.writeText(url);
         toast.success("Post link copied");

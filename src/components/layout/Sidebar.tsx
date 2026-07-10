@@ -8,6 +8,7 @@ import {
   Briefcase,
   ClipboardList,
   Home,
+  Gift,
   LogOut,
   MessageSquare,
   Settings,
@@ -27,6 +28,7 @@ const navItems: Array<{ label: string; href: string; icon: React.ComponentType<{
   { label: "AMC Care", href: "/amc", icon: ShieldCheck, roles: ["customer", "partner", "administrator"] },
   { label: "Workspace", href: "/workspace", icon: Briefcase, roles: ["partner", "administrator"] },
   { label: "Profile", href: "/profile", icon: UserCircle, roles: ["customer", "partner", "administrator"] },
+  { label: "Rewards", href: "/rewards", icon: Gift, roles: ["customer", "partner", "administrator"] },
   { label: "Activity", href: "/activity", icon: Bell, roles: ["customer", "partner", "administrator"] },
   { label: "Settings", href: "/settings", icon: Settings, roles: ["customer", "partner", "administrator"] },
 ];

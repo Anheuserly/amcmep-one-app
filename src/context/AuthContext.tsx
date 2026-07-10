@@ -25,7 +25,7 @@ interface AuthState {
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  register: (email: string, password: string, name: string, referrerId?: string) => Promise<void>;
   logout: () => Promise<void>;
   createGuestSession: () => Promise<void>;
   completeQrProfileSession: (profile: UserProfile) => void;
@@ -121,7 +121,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         country: readString(clientProfile ?? {}, "country") || "India",
         roles,
         activeRole,
-        referralCode: user.prefs?.referralCode || readString(clientProfile ?? {}, "referralCode"),
+        referralCode:
+          user.prefs?.referralCode ||
+          readString(clientProfile ?? {}, "referralCode") ||
+          buildReferralCode(readString(clientProfile ?? {}, "customerId") || user.$id),
         preferredLanguage: readString(clientProfile ?? {}, "language") || user.prefs?.preferredLanguage || "en",
         createdAt: readString(clientProfile ?? {}, "createdAt") || user.$createdAt,
         updatedAt: readString(clientProfile ?? {}, "updatedAt") || user.$updatedAt,
@@ -180,7 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const register = useCallback(
-    async (email: string, password: string, name: string) => {
+    async (email: string, password: string, name: string, referrerId?: string) => {
       clearStoredProfileSession();
       await clearCurrentSession();
       await appwrite.account.create(ID.unique(), email, password, name);
@@ -192,7 +195,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         preferredLanguage: "en",
       });
       const user = await appwrite.account.get();
-      await linkEmailClientProfile({ accountId: user.$id, email: user.email, name });
+      await linkEmailClientProfile({
+        accountId: user.$id,
+        email: user.email,
+        name,
+        referrerId,
+      });
       await refreshProfile();
     },
     [refreshProfile]
@@ -271,6 +279,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
+}
+
+function buildReferralCode(seed: string) {
+  const cleaned = seed.replace(/[^a-z0-9]/gi, "").toUpperCase();
+  return `AMC${cleaned.slice(-6) || "MEP247"}`;
 }
 
 export function useAuth() {

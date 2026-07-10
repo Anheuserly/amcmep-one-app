@@ -19,6 +19,10 @@ export const appwriteConfig = {
       process.env.NEXT_PUBLIC_APPWRITE_SERVICE_REQUESTS_COLLECTION_ID ?? "685c3b1d002324dcb294",
     feed:
       process.env.NEXT_PUBLIC_APPWRITE_FEED_COLLECTION_ID ?? "68a361040001a07e0b58",
+    feedReports:
+      process.env.NEXT_PUBLIC_APPWRITE_FEED_REPORTS_COLLECTION_ID ?? "reported_posts",
+    referralRewards:
+      process.env.NEXT_PUBLIC_APPWRITE_REFERRAL_REWARDS_COLLECTION_ID ?? "referral_rewards",
     searchDocuments:
       process.env.NEXT_PUBLIC_APPWRITE_SEARCH_COLLECTION_ID ?? "search_documents",
     queryLogs:
