@@ -15,6 +15,8 @@ export interface UserProfile {
   activeRole: UserRole;
   referralCode?: string;
   preferredLanguage: string;
+  businessIds: string[];
+  activeBusinessId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -202,7 +204,26 @@ export interface WorkspaceMembership {
   userId: string;
   role: "owner" | "admin" | "partner" | "staff";
   permissions: string[];
+  memberName?: string;
+  memberPhone?: string;
+  memberDocumentId?: string;
+  invitedBy?: string;
+  isPrimary?: boolean;
+  status?: string;
+  onDuty?: boolean;
   joinedAt: string;
+}
+
+export interface WorkspacePerson {
+  documentId: string;
+  userId: string;
+  name: string;
+  company: string;
+  avatar?: string;
+  partnerType: "service" | "vendor" | "service_vendor";
+  partnerSkills: string[];
+  partnerServiceAreas: string[];
+  partnerVerified: boolean;
 }
 
 export interface NavItem {

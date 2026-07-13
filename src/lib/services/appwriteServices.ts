@@ -15,6 +15,7 @@ import type {
   ServiceRequest,
   UserRole,
   WorkspaceMembership,
+  WorkspacePerson,
 } from "@/types";
 
 const DB_ID = appwriteConfig.databaseId;
@@ -25,7 +26,7 @@ const COLLECTIONS = {
   feed: "68a361040001a07e0b58",
   feedComments: "feed_comments",
   marketplace: "marketplace_showcases",
-  clients: "680b30be0039f9a1d03e",
+  clients: appwriteConfig.collections.userData,
   administrators: "681c97fa003d57ddf43d",
   businesses: "businesses",
   businessMemberships: "business_memberships",
@@ -348,6 +349,13 @@ export function toWorkspaceMembership(doc: any): WorkspaceMembership {
     userId: readString(doc, "userId") || readString(doc, "memberUserId"),
     role: (readString(doc, "role") || "staff") as WorkspaceMembership["role"],
     permissions: readStringArray(doc, "permissions"),
+    memberName: readString(doc, "memberName"),
+    memberPhone: readString(doc, "memberPhone"),
+    memberDocumentId: readString(doc, "memberDocumentId") || undefined,
+    invitedBy: readString(doc, "invitedBy") || undefined,
+    isPrimary: readBool(doc, "isPrimary"),
+    status: readString(doc, "status") || "active",
+    onDuty: readBool(doc, "onDuty"),
     joinedAt: readString(doc, "joinedAt") || doc.$createdAt,
   };
 }
@@ -639,6 +647,80 @@ export async function fetchBusinesses({ ownerId, limit = 100 }: { ownerId?: stri
 export async function fetchBusinessMemberships(businessId: string) {
   const resp = await appwrite.databases.listDocuments(DB_ID, COLLECTIONS.businessMemberships, [Query.equal("businessId", businessId), Query.equal("status", "active"), Query.limit(100)]);
   return resp.documents;
+}
+
+export async function fetchMembershipsForUser(userId: string) {
+  const response = await appwrite.databases.listDocuments(DB_ID, COLLECTIONS.businessMemberships, [
+    Query.equal("userId", userId),
+    Query.equal("status", "active"),
+    Query.limit(100),
+  ]);
+  return response.documents;
+}
+
+export async function fetchBusinessesByIds(businessIds: string[]) {
+  const uniqueIds = Array.from(new Set(businessIds.filter(Boolean)));
+  if (!uniqueIds.length) return [];
+  const documents = await Promise.all(uniqueIds.map(async (businessId) => {
+    try {
+      return await appwrite.databases.getDocument(DB_ID, COLLECTIONS.businesses, businessId);
+    } catch {
+      return null;
+    }
+  }));
+  return documents.filter((document): document is NonNullable<typeof document> => Boolean(document));
+}
+
+export async function fetchBusinessRequests(businessId: string, limit = 100) {
+  const merged = new Map<string, any>();
+  for (const attribute of ["assignedBusinessId", "businessId"]) {
+    try {
+      const response = await appwrite.databases.listDocuments(DB_ID, COLLECTIONS.serviceRequests, [
+        Query.equal(attribute, businessId), Query.orderDesc("$createdAt"), Query.limit(limit),
+      ]);
+      for (const document of response.documents) merged.set(document.$id, document);
+    } catch {}
+  }
+  return Array.from(merged.values()).filter(isVisibleRequest);
+}
+
+export async function fetchWorkspacePeople(currentUserId: string): Promise<WorkspacePerson[]> {
+  const response = await appwrite.databases.listDocuments(DB_ID, COLLECTIONS.clients, [Query.limit(100)]);
+  return response.documents
+    .filter((document) => readBool(document, "isActive") !== false && readBool(document, "isDeleted") !== true)
+    .filter((document) => (readString(document, "user_id") || document.$id) !== currentUserId)
+    .filter((document) => readBool(document, "partnerEnabled") || ["active", "approved"].includes(readString(document, "partnerProgramStatus").toLowerCase()))
+    .map((document) => ({
+      documentId: document.$id,
+      userId: readString(document, "user_id") || readString(document, "customerId") || document.$id,
+      name: readString(document, "name") || readString(document, "clientName") || "AMC MEP partner",
+      company: readString(document, "buisnessName") || readString(document, "businessName") || readString(document, "company"),
+      avatar: readString(document, "profileImage") || readString(document, "avatar") || undefined,
+      partnerType: (readString(document, "partnerType") || "service") as WorkspacePerson["partnerType"],
+      partnerSkills: readStringArray(document, "partnerSkills"),
+      partnerServiceAreas: readStringArray(document, "partnerServiceAreas"),
+      partnerVerified: readBool(document, "partnerVerified"),
+    }));
+}
+
+export async function addBusinessPartner({ business, person, invitedBy }: { business: Business; person: WorkspacePerson; invitedBy: string }) {
+  const existing = await appwrite.databases.listDocuments(DB_ID, COLLECTIONS.businessMemberships, [
+    Query.equal("businessId", business.$id), Query.equal("userId", person.userId), Query.limit(1),
+  ]);
+  const memberships = (await fetchMembershipsForUser(person.userId)).map(toWorkspaceMembership);
+  const activePartnerBusinessIds = new Set(memberships.filter((item) => item.status === "active" && item.role !== "owner").map((item) => item.businessId));
+  if (!activePartnerBusinessIds.has(business.$id) && activePartnerBusinessIds.size >= 10) throw new Error(`${person.name} already belongs to 10 businesses.`);
+
+  const now = new Date().toISOString();
+  const permissions = [...(business.servicesEnabled ? ["receive_service_work", "submit_inspection"] : []), ...(business.vendorEnabled ? ["receive_product_requirements"] : []), "business_chat"];
+  const membershipData = { businessId: business.$id, userId: person.userId, memberDocumentId: person.documentId, memberName: person.name, memberPhone: "", role: "partner", permissions, status: "active", isPrimary: false, onDuty: true, acceptedAt: now };
+  if (existing.documents.length) await appwrite.databases.updateDocument(DB_ID, COLLECTIONS.businessMemberships, existing.documents[0].$id, membershipData);
+  else await appwrite.databases.createDocument(DB_ID, COLLECTIONS.businessMemberships, ID.unique(), { ...membershipData, joinedAt: now, invitedAt: now, invitedBy });
+
+  const partnerProfile = await appwrite.databases.getDocument(DB_ID, COLLECTIONS.clients, person.documentId);
+  const businessIds = Array.from(new Set([...readStringArray(partnerProfile, "businessIds"), business.$id]));
+  const roles = Array.from(new Set([...readStringArray(partnerProfile, "roles"), "customer", "partner", ...(business.vendorEnabled ? ["vendor"] : [])])).sort();
+  await appwrite.databases.updateDocument(DB_ID, COLLECTIONS.clients, person.documentId, { businessIds, activeBusinessId: readString(partnerProfile, "activeBusinessId") || business.$id, roles, activeRole: readString(partnerProfile, "activeRole") || "partner", partnerEnabled: true, vendorEnabled: business.vendorEnabled || roles.includes("vendor"), updatedAt: now });
 }
 
 export async function fetchAllUsers({ limit = 100 }: { limit?: number } = {}) {

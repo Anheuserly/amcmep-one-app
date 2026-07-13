@@ -16,9 +16,21 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  const getDestination = () => {
+    const requested = new URLSearchParams(window.location.search).get("returnTo");
+    if (!requested) return "/";
+    if (requested.startsWith("/") && !requested.startsWith("//")) return requested;
+    try {
+      const url = new URL(requested);
+      return url.protocol === "https:" && url.hostname === "workspace.amcmep.in" ? url.toString() : "/";
+    } catch {
+      return "/";
+    }
+  };
+
   useEffect(() => {
-    if (isAuthenticated && activeRole !== "guest") router.replace("/");
-  }, [activeRole, isAuthenticated, router]);
+    if (isAuthenticated && activeRole !== "guest") window.location.replace(getDestination());
+  }, [activeRole, isAuthenticated]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -30,7 +42,7 @@ export default function LoginPage() {
     try {
       await login(email, password);
       toast.success("Welcome back");
-      router.replace("/");
+      window.location.replace(getDestination());
     } catch (err: any) {
       toast.error(err.message || "Email or password is incorrect.");
     } finally {

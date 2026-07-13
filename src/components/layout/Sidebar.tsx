@@ -6,6 +6,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import {
   Bell,
   Briefcase,
+  Building2,
   ClipboardList,
   Home,
   Gift,
@@ -19,14 +20,15 @@ import {
 } from "lucide-react";
 import type { UserRole } from "@/types";
 
-const navItems: Array<{ label: string; href: string; icon: React.ComponentType<{ className?: string }>; roles: UserRole[] }> = [
+const navItems: Array<{ label: string; href: string; icon: React.ComponentType<{ className?: string }>; roles: UserRole[]; external?: boolean }> = [
   { label: "Home", href: "/", icon: Home, roles: ["customer", "partner", "administrator"] },
   { label: "Assistant", href: "/assistant", icon: MessageSquare, roles: ["customer", "partner", "administrator"] },
   { label: "Messages", href: "/chats", icon: MessageSquare, roles: ["customer", "partner", "administrator"] },
   { label: "Market", href: "/marketplace", icon: ShoppingCart, roles: ["customer", "partner", "administrator"] },
   { label: "Requests", href: "/requests", icon: ClipboardList, roles: ["customer", "partner", "administrator"] },
   { label: "AMC Care", href: "/amc", icon: ShieldCheck, roles: ["customer", "partner", "administrator"] },
-  { label: "Workspace", href: "/workspace", icon: Briefcase, roles: ["partner", "administrator"] },
+  { label: "Work", href: "/work", icon: Briefcase, roles: ["customer", "partner", "administrator"] },
+  { label: "Business", href: "/business", icon: Building2, roles: ["customer", "partner", "administrator"] },
   { label: "Profile", href: "/profile", icon: UserCircle, roles: ["customer", "partner", "administrator"] },
   { label: "Rewards", href: "/rewards", icon: Gift, roles: ["customer", "partner", "administrator"] },
   { label: "Activity", href: "/activity", icon: Bell, roles: ["customer", "partner", "administrator"] },
@@ -43,7 +45,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { profile, activeRole, logout } = useAuth();
 
-  const handleNav = (href: string) => {
+  const handleNav = (href: string, external = false) => {
+    if (external) {
+      window.location.assign(href);
+      return;
+    }
     router.push(href);
     onClose();
   };
@@ -82,11 +88,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           <nav className="flex-1 overflow-y-auto px-3 py-4">
             <ul className="space-y-1">
               {filteredItems.map((item) => {
-                      const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`));
+                      const active = !item.external && (pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`)));
                       return (
                         <li key={item.href}>
                           <button
-                            onClick={() => handleNav(item.href)}
+                            onClick={() => handleNav(item.href, item.external)}
                             className={`group flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-all ${
                               active
                                 ? "bg-blue-600 text-white shadow-sm shadow-blue-200"
