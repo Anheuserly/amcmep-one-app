@@ -1,13 +1,12 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
-import { ID, type Models } from "appwrite";
+import { type Models } from "appwrite";
 import { appwrite } from "@/lib/appwrite/client";
 import {
   clearCurrentSession,
   clearStoredProfileSession,
   ensureAnonymousSession,
-  linkEmailClientProfile,
   loadStoredProfileSession,
 } from "@/lib/services/authServices";
 import { fetchClientProfile, readString, readStringArray } from "@/lib/services/appwriteServices";
@@ -24,8 +23,6 @@ interface AuthState {
 }
 
 interface AuthContextType extends AuthState {
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string, referrerId?: string) => Promise<void>;
   logout: () => Promise<void>;
   createGuestSession: () => Promise<void>;
   completeQrProfileSession: (profile: UserProfile) => void;
@@ -174,42 +171,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshProfile();
   }, [refreshProfile]);
 
-  const login = useCallback(
-    async (email: string, password: string) => {
-      clearStoredProfileSession();
-      await clearCurrentSession();
-      await appwrite.account.createEmailPasswordSession(email, password);
-      const user = await appwrite.account.get();
-      await linkEmailClientProfile({ accountId: user.$id, email: user.email, name: user.name });
-      await refreshProfile();
-    },
-    [refreshProfile]
-  );
-
-  const register = useCallback(
-    async (email: string, password: string, name: string, referrerId?: string) => {
-      clearStoredProfileSession();
-      await clearCurrentSession();
-      await appwrite.account.create(ID.unique(), email, password, name);
-      await appwrite.account.createEmailPasswordSession(email, password);
-      await appwrite.account.updatePrefs({
-        name,
-        roles: ["customer"],
-        activeRole: "customer",
-        preferredLanguage: "en",
-      });
-      const user = await appwrite.account.get();
-      await linkEmailClientProfile({
-        accountId: user.$id,
-        email: user.email,
-        name,
-        referrerId,
-      });
-      await refreshProfile();
-    },
-    [refreshProfile]
-  );
-
   const logout = useCallback(async () => {
     clearStoredProfileSession();
     await clearCurrentSession();
@@ -271,8 +232,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         ...state,
-        login,
-        register,
         logout,
         createGuestSession,
         completeQrProfileSession,

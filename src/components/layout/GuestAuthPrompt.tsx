@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
-import { ArrowRight, QrCode, UserPlus, X } from "lucide-react";
+import { ArrowRight, X } from "lucide-react";
 
 const PROMPT_DISMISSED_KEY = "amcmep_guest_auth_prompt_dismissed";
 
@@ -66,25 +66,10 @@ export function GuestAuthPrompt() {
 
           <div className="mt-6 grid gap-3">
             <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => go("/login")}>
-              Sign in
+              Sign in with mobile approval
               <ArrowRight className="h-4 w-4" />
             </Button>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Button variant="outline" className="h-auto justify-start p-4 text-left" onClick={() => go("/register")}>
-                <UserPlus className="h-5 w-5 text-blue-600" />
-                <span>
-                  <span className="block text-sm font-bold">Create account</span>
-                  <span className="block text-xs font-medium text-slate-500">Start fresh</span>
-                </span>
-              </Button>
-              <Button variant="outline" className="h-auto justify-start p-4 text-left" onClick={() => go("/qr-login")}>
-                <QrCode className="h-5 w-5 text-blue-600" />
-                <span>
-                  <span className="block text-sm font-bold">QR approval</span>
-                  <span className="block text-xs font-medium text-slate-500">Use mobile app</span>
-                </span>
-              </Button>
-            </div>
+            <p className="text-center text-xs leading-5 text-slate-500">New accounts are created and SIM-verified only in the AMC MEP mobile app.</p>
             <button onClick={close} className="h-11 rounded-xl text-sm font-bold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800">
               Continue browsing
             </button>

@@ -1,17 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { useAuth } from "@/context/AuthContext";
 import { consumeApprovedQrLogin, createQrLoginSession, fetchQrLoginSession, type QrLoginSession } from "@/lib/services/authServices";
 import toast from "react-hot-toast";
-import { ArrowLeft, CheckCircle2, Loader2, QrCode, RefreshCw, Smartphone } from "lucide-react";
+import { CheckCircle2, HelpCircle, Loader2, QrCode, RefreshCw, Smartphone } from "lucide-react";
 
 export default function QrLoginPage() {
-  const router = useRouter();
   const { completeQrProfileSession } = useAuth();
   const [session, setSession] = useState<QrLoginSession | null>(null);
   const [qrImage, setQrImage] = useState("");
@@ -19,6 +17,18 @@ export default function QrLoginPage() {
   const [message, setMessage] = useState("Creating secure QR...");
   const [error, setError] = useState("");
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const getDestination = () => {
+    const requested = new URLSearchParams(window.location.search).get("returnTo");
+    if (!requested) return "/";
+    if (requested.startsWith("/") && !requested.startsWith("//")) return requested;
+    try {
+      const url = new URL(requested);
+      return url.protocol === "https:" && url.hostname === "workspace.amcmep.in" ? url.toString() : "/";
+    } catch {
+      return "/";
+    }
+  };
 
   const stopPolling = () => {
     if (pollingRef.current) clearInterval(pollingRef.current);
@@ -55,7 +65,7 @@ export default function QrLoginPage() {
             const profile = await consumeApprovedQrLogin(latest.token);
             completeQrProfileSession(profile);
             toast.success("Device login approved");
-            router.replace("/");
+            window.location.replace(getDestination());
           } else if (latest.status === "used" || latest.status === "expired") {
             stopPolling();
             setError(latest.status === "used" ? "This QR was already used." : "This QR expired. Generate a new code.");
@@ -81,19 +91,14 @@ export default function QrLoginPage() {
 
   return (
     <div className="animate-fade-in">
-      <button onClick={() => router.push("/login")} className="mb-5 flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-800">
-        <ArrowLeft className="h-4 w-4" />
-        Back to login
-      </button>
-
       <Card className="border-slate-200 shadow-xl shadow-slate-200/60">
         <CardContent className="p-6 sm:p-7">
           <div className="mb-6">
             <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-white">
               <QrCode className="h-5 w-5" />
             </div>
-            <h1 className="text-2xl font-black tracking-tight text-slate-950">Login with QR approval</h1>
-            <p className="mt-1 text-sm leading-6 text-slate-500">Scan this from the mobile app profile screen on a SIM-verified device.</p>
+            <h1 className="text-2xl font-black tracking-tight text-slate-950">Sign in from your phone</h1>
+            <p className="mt-1 text-sm leading-6 text-slate-500">Open AMC MEP 24x7 One on your verified phone, then scan this code from your profile.</p>
           </div>
 
           <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
@@ -136,6 +141,10 @@ export default function QrLoginPage() {
             <RefreshCw className="h-4 w-4" />
             Generate new QR
           </Button>
+          <div className="mt-5 border-t border-slate-100 pt-5 text-center">
+            <p className="text-xs leading-5 text-slate-500">Accounts are created and verified only in the AMC MEP mobile app.</p>
+            <a href="https://www.amcmep.in/support" className="mt-3 inline-flex items-center gap-2 text-sm font-bold text-blue-700 hover:text-blue-800"><HelpCircle className="h-4 w-4" />Need help signing in?</a>
+          </div>
         </CardContent>
       </Card>
     </div>

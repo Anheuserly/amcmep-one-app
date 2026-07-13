@@ -45,16 +45,16 @@ export default function ReferralLandingPage() {
               <p className="mt-1 font-mono text-base font-black text-emerald-950">{code || "INVALID CODE"}</p>
             </div>
             <div className="space-y-4 text-sm text-slate-600">
-              <div className="flex gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 text-blue-600" /><span>Your referral is attached securely when you create an account.</span></div>
+              <div className="flex gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 text-blue-600" /><span>Your referral is saved securely and can be used when you join from the mobile app.</span></div>
               <div className="flex gap-3"><Users className="mt-0.5 h-5 w-5 text-blue-600" /><span>After joining, you can invite people from your own Rewards page.</span></div>
             </div>
             <Button
               size="lg"
               className="mt-8 w-full bg-blue-600 hover:bg-blue-700"
               disabled={!code}
-              onClick={() => router.push("/register")}
+              onClick={() => router.push("/login")}
             >
-              Accept invitation
+              Continue with the mobile app
               <ArrowRight className="h-4 w-4" />
             </Button>
             <button onClick={() => router.push("/")} className="mt-4 w-full text-sm font-semibold text-slate-500 hover:text-slate-900">

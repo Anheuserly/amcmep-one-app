@@ -1,7 +1,7 @@
 import { ID, Query } from "appwrite";
 import { appwrite } from "@/lib/appwrite/client";
 import { appwriteConfig } from "@/lib/appwrite/config";
-import { COLLECTIONS, readString, readStringArray } from "./appwriteServices";
+import { readString } from "./appwriteServices";
 import type { UserProfile, UserRole } from "@/types";
 
 const DB_ID = appwriteConfig.databaseId;
@@ -66,16 +66,6 @@ function toQrLoginSession(doc: any): QrLoginSession {
   };
 }
 
-function buildCustomerId() {
-  return `c${Date.now()}${Math.floor(1000 + Math.random() * 9000)}`;
-}
-
-function mergedAuthMethods(raw: any, method: string) {
-  const methods = new Set(readStringArray({ raw }, "raw"));
-  methods.add(method);
-  return Array.from(methods).filter(Boolean).sort();
-}
-
 export async function ensureAnonymousSession() {
   try {
     await appwrite.account.getSession("current");
@@ -90,76 +80,6 @@ export async function clearCurrentSession() {
   try {
     await appwrite.account.deleteSession("current");
   } catch {}
-}
-
-export async function isEmailProfileRegistered(email: string) {
-  const normalized = email.trim().toLowerCase();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalized)) {
-    throw new Error("Enter a valid email address.");
-  }
-  const rows = await appwrite.databases.listDocuments(DB_ID, COLLECTIONS.clients, [
-    Query.equal("email", normalized),
-    Query.limit(1),
-  ]);
-  return rows.documents.length > 0;
-}
-
-export async function linkEmailClientProfile({
-  accountId,
-  email,
-  name,
-  referrerId,
-}: {
-  accountId: string;
-  email: string;
-  name?: string;
-  referrerId?: string;
-}) {
-  const normalizedEmail = email.trim().toLowerCase();
-  const now = new Date().toISOString();
-  let existing: any | undefined;
-
-  for (const query of [Query.equal("user_id", accountId), Query.equal("email", normalizedEmail)]) {
-    try {
-      const rows = await appwrite.databases.listDocuments(DB_ID, COLLECTIONS.clients, [query, Query.limit(1)]);
-      if (rows.documents.length > 0) {
-        existing = rows.documents[0];
-        break;
-      }
-    } catch {}
-  }
-
-  const displayName = name?.trim() || readString(existing ?? {}, "name") || "Client User";
-  const customerId = readString(existing ?? {}, "customerId") || buildCustomerId();
-  const data = {
-    user_id: accountId,
-    email: normalizedEmail,
-    name: displayName,
-    customerId,
-    isDeleted: false,
-    isActive: true,
-    profileComplete: true,
-    updatedAt: now,
-    lastLoginAt: now,
-    authMethods: mergedAuthMethods(existing?.authMethods, "email"),
-    roles: readStringArray(existing ?? {}, "roles").length ? readStringArray(existing, "roles") : ["customer"],
-    activeRole: readString(existing ?? {}, "activeRole") || "customer",
-    customerEnabled: true,
-    ...(referrerId?.trim() && !existing?.referrerId
-      ? { referrerId: referrerId.trim().toUpperCase() }
-      : {}),
-  };
-
-  if (existing) {
-    return appwrite.databases.updateDocument(DB_ID, COLLECTIONS.clients, existing.$id, data);
-  }
-
-  return appwrite.databases.createDocument(DB_ID, COLLECTIONS.clients, ID.unique(), {
-    ...data,
-    createdAt: now,
-    phone: "",
-    countryCode: "",
-  });
 }
 
 export async function createQrLoginSession() {
