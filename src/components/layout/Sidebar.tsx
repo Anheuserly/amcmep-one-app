@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Avatar } from "@/components/ui/Avatar";
 import {
@@ -19,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import type { UserRole } from "@/types";
+import { fetchBusinesses, fetchMembershipsForIdentity } from "@/lib/services/appwriteServices";
 
 const navItems: Array<{ label: string; href: string; icon: React.ComponentType<{ className?: string }>; roles: UserRole[]; external?: boolean }> = [
   { label: "Home", href: "/", icon: Home, roles: ["customer", "partner", "administrator"] },
@@ -44,6 +46,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { profile, activeRole, logout } = useAuth();
+  const [hasBusinessAccess, setHasBusinessAccess] = useState(false);
+
+  useEffect(() => { let active = true; if (!profile?.userId) return; Promise.all([
+    fetchMembershipsForIdentity({ userId: profile.userId, customerId: profile.customerId, documentId: profile.$id, phone: profile.phone }),
+    fetchBusinesses({ ownerId: profile.userId }),
+    profile.customerId ? fetchBusinesses({ ownerId: profile.customerId }) : Promise.resolve([]),
+  ]).then(([memberships, ownedByUser, ownedByCustomer]) => { if (active) setHasBusinessAccess(Boolean(memberships.length || ownedByUser.length || ownedByCustomer.length)); }).catch(() => { if (active) setHasBusinessAccess(false); }); return () => { active = false; }; }, [profile]);
 
   const handleNav = (href: string, external = false) => {
     if (external) {
@@ -54,7 +63,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     onClose();
   };
 
-  const filteredItems = navItems.filter((item) => item.roles.includes(activeRole));
+  const filteredItems = navItems.filter((item) => item.roles.includes(activeRole) && (item.href !== "/work" || hasBusinessAccess));
 
   return (
     <>

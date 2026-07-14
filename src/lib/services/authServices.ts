@@ -108,6 +108,19 @@ export async function createQrLoginSession() {
   return toQrLoginSession(doc);
 }
 
+export async function createWorkspaceHandoff(profile: UserProfile) {
+  await ensureAnonymousSession();
+  const now = new Date();
+  const token = buildQrToken();
+  await appwrite.databases.createDocument(DB_ID, QR_LOGIN_COLLECTION, ID.unique(), {
+    token, status: "approved", requestedAt: now.toISOString(), expiresAt: new Date(now.getTime() + 60 * 1000).toISOString(),
+    requesterPlatform: "web", requesterDeviceId: "workspace-handoff", requesterDeviceModel: "AMC MEP web",
+    approvedAt: now.toISOString(), approvedClientId: profile.$id, approvedUserId: profile.userId,
+    approvedCustomerId: profile.customerId || "", approvedName: profile.name || "", approvedPhone: profile.phone || "",
+  });
+  return token;
+}
+
 export async function fetchQrLoginSession(tokenOrPayload: string) {
   const token = normalizeQrToken(tokenOrPayload);
   if (!token) return null;

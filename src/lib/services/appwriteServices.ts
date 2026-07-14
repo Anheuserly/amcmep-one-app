@@ -658,6 +658,18 @@ export async function fetchMembershipsForUser(userId: string) {
   return response.documents;
 }
 
+export async function fetchMembershipsForIdentity(identity: { userId?: string; customerId?: string; documentId?: string; phone?: string }) {
+  const merged = new Map<string, any>();
+  const lookups: Array<[string, string | undefined]> = [
+    ["userId", identity.userId], ["userId", identity.customerId], ["memberDocumentId", identity.documentId], ["memberPhone", identity.phone],
+  ];
+  for (const [attribute, raw] of lookups) {
+    const value = raw?.trim(); if (!value) continue;
+    try { const rows = await appwrite.databases.listDocuments(DB_ID, COLLECTIONS.businessMemberships, [Query.equal(attribute, value), Query.equal("status", "active"), Query.limit(100)]); rows.documents.forEach((row) => merged.set(row.$id, row)); } catch {}
+  }
+  return Array.from(merged.values());
+}
+
 export async function fetchBusinessesByIds(businessIds: string[]) {
   const uniqueIds = Array.from(new Set(businessIds.filter(Boolean)));
   if (!uniqueIds.length) return [];
