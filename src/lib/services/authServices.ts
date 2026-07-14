@@ -1,7 +1,7 @@
 import { ID, Query } from "appwrite";
 import { appwrite } from "@/lib/appwrite/client";
 import { appwriteConfig } from "@/lib/appwrite/config";
-import { readString } from "./appwriteServices";
+import { readString, readStringArray } from "./appwriteServices";
 import type { UserProfile, UserRole } from "@/types";
 
 const DB_ID = appwriteConfig.databaseId;
@@ -30,6 +30,15 @@ export interface StoredProfileSession {
   profile: UserProfile;
   storedAt: string;
   method: "qr";
+}
+
+function buildCustomerId() {
+  return `c${Date.now()}${Math.floor(1000 + Math.random() * 9000)}`;
+}
+
+function mergedAuthMethods(raw: unknown, method: string) {
+  const values = Array.isArray(raw) ? raw.map(String) : [];
+  return Array.from(new Set([...values.filter(Boolean), method])).sort();
 }
 
 function buildQrToken() {
@@ -93,7 +102,7 @@ export async function createQrLoginSession() {
     requestedAt: now.toISOString(),
     expiresAt: expiresAt.toISOString(),
     requesterPlatform: "web",
-    requesterDeviceId: typeof navigator === "undefined" ? "web" : navigator.userAgent.slice(0, 120),
+    requesterDeviceId: typeof navigator === "undefined" ? "web" : navigator.userAgent.slice(0, 100),
     requesterDeviceModel: "AMC MEP web",
   });
   return toQrLoginSession(doc);
@@ -122,19 +131,20 @@ export async function consumeApprovedQrLogin(tokenOrPayload: string): Promise<Us
   if (!session.approvedPhone || !session.approvedClientId) throw new Error("QR login approval is incomplete.");
 
   const now = new Date().toISOString();
+  const client = await appwrite.databases.getDocument(DB_ID, appwriteConfig.collections.userData, session.approvedClientId).catch(() => null);
   const profile: UserProfile = {
     $id: session.approvedClientId,
     userId: session.approvedUserId || session.approvedCustomerId || session.approvedClientId,
     customerId: session.approvedCustomerId,
-    name: session.approvedName || "Client User",
-    email: "",
+    name: readString(client, "name") || session.approvedName,
+    email: readString(client, "email"),
     phone: session.approvedPhone,
     roles: ["customer"],
     activeRole: "customer",
-    businessIds: [],
-    activeBusinessId: undefined,
-    preferredLanguage: "en",
-    createdAt: session.requestedAt,
+    businessIds: readStringArray(client, "businessIds"),
+    activeBusinessId: readString(client, "activeBusinessId") || undefined,
+    preferredLanguage: readString(client, "language") || "en",
+    createdAt: readString(client, "createdAt") || session.requestedAt,
     updatedAt: now,
   };
 
@@ -146,6 +156,23 @@ export async function consumeApprovedQrLogin(tokenOrPayload: string): Promise<Us
     });
   } catch {}
   return profile;
+}
+
+export async function linkEmailClientProfile({ accountId, email, name, trustedClientId }: { accountId: string; email: string; name?: string; trustedClientId?: string }) {
+  const normalizedEmail = email.trim().toLowerCase();
+  const now = new Date().toISOString();
+  let existing: any | null = null;
+  if (trustedClientId) existing = await appwrite.databases.getDocument(DB_ID, appwriteConfig.collections.userData, trustedClientId).catch(() => null);
+  if (!existing) {
+    for (const query of [Query.equal("user_id", accountId), Query.equal("email", normalizedEmail)]) {
+      const rows = await appwrite.databases.listDocuments(DB_ID, appwriteConfig.collections.userData, [query, Query.limit(1)]).catch(() => null);
+      if (rows?.documents[0]) { existing = rows.documents[0]; break; }
+    }
+  }
+  const displayName = name?.trim() || readString(existing, "name") || "Client User";
+  const data = { user_id: accountId, email: normalizedEmail, name: displayName, customerId: readString(existing, "customerId") || buildCustomerId(), isDeleted: false, isActive: true, profileComplete: true, updatedAt: now, lastLoginAt: now, authMethods: mergedAuthMethods(existing?.authMethods, "email") };
+  if (existing) return appwrite.databases.updateDocument(DB_ID, appwriteConfig.collections.userData, existing.$id, data);
+  return appwrite.databases.createDocument(DB_ID, appwriteConfig.collections.userData, ID.unique(), { ...data, createdAt: now, phone: "", countryCode: "" });
 }
 
 export function loadStoredProfileSession(): StoredProfileSession | null {
