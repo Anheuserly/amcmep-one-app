@@ -20,10 +20,7 @@ import {
   X,
 } from "lucide-react";
 import type { UserRole } from "@/types";
-import {
-  fetchBusinesses,
-  fetchMembershipsForIdentity,
-} from "@/lib/services/appwriteServices";
+import { fetchMembershipsForIdentity } from "@/lib/services/appwriteServices";
 
 const navItems: Array<{
   label: string;
@@ -123,17 +120,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
     if (!profile?.userId) return;
 
-    Promise.all([
-      fetchMembershipsForIdentity({
-        userId: profile.userId,
-        customerId: profile.customerId,
-      }),
-      fetchBusinesses({ ownerId: profile.userId }),
-      profile.customerId
-        ? fetchBusinesses({ ownerId: profile.customerId })
-        : Promise.resolve([]),
-    ])
-      .then(([memberships, ownedByUser, ownedByCustomer]) => {
+    fetchMembershipsForIdentity({
+      userId: profile.userId,
+      customerId: profile.customerId,
+    })
+      .then((memberships) => {
         if (!active) return;
 
         const exactMembership = memberships.some((row) => {
@@ -144,11 +135,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           );
         });
 
-        setHasBusinessAccess(
-          Boolean(
-            exactMembership || ownedByUser.length || ownedByCustomer.length,
-          ),
-        );
+        setHasBusinessAccess(exactMembership);
       })
       .catch(() => {
         if (active) setHasBusinessAccess(false);

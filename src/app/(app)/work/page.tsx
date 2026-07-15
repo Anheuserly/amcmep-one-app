@@ -16,7 +16,6 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import {
   fetchAssignments,
-  fetchBusinesses,
   fetchBusinessRequests,
   fetchMembershipsForIdentity,
   toServiceRequest,
@@ -41,16 +40,10 @@ export default function WorkPage() {
       if (!profile?.userId) return;
       setLoading(true);
       try {
-        const [memberships, ownedByUser, ownedByCustomer] = await Promise.all([
-          fetchMembershipsForIdentity({
-            userId: profile.userId,
-            customerId: profile.customerId,
-          }),
-          fetchBusinesses({ ownerId: profile.userId }),
-          profile.customerId
-            ? fetchBusinesses({ ownerId: profile.customerId })
-            : Promise.resolve([]),
-        ]);
+        const memberships = await fetchMembershipsForIdentity({
+          userId: profile.userId,
+          customerId: profile.customerId,
+        });
         const exactMemberships = memberships.filter((item) => {
           const memberUserId = (item as any).userId?.toString().trim();
           return (
@@ -64,8 +57,6 @@ export default function WorkPage() {
               ...exactMemberships.map(
                 (item) => (item as any).businessId?.toString() || "",
               ),
-              ...ownedByUser.map((business) => business.$id),
-              ...ownedByCustomer.map((business) => business.$id),
             ].filter(Boolean),
           ),
         );
