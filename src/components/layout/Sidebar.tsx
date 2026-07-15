@@ -122,17 +122,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
     fetchMembershipsForIdentity({
       userId: profile.userId,
-      customerId: profile.customerId,
     })
       .then((memberships) => {
         if (!active) return;
 
         const exactMembership = memberships.some((row) => {
           const memberUserId = (row as any).userId?.toString().trim();
-          return (
-            memberUserId === profile.userId ||
-            Boolean(profile.customerId && memberUserId === profile.customerId)
-          );
+          return memberUserId === profile.userId;
         });
 
         setHasBusinessAccess(exactMembership);
@@ -144,7 +140,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     return () => {
       active = false;
     };
-  }, [profile?.customerId, profile?.userId]);
+  }, [profile?.userId]);
 
   const handleNav = (href: string, external = false) => {
     if (external) {

@@ -42,14 +42,10 @@ export default function WorkPage() {
       try {
         const memberships = await fetchMembershipsForIdentity({
           userId: profile.userId,
-          customerId: profile.customerId,
         });
         const exactMemberships = memberships.filter((item) => {
           const memberUserId = (item as any).userId?.toString().trim();
-          return (
-            memberUserId === profile.userId ||
-            Boolean(profile.customerId && memberUserId === profile.customerId)
-          );
+          return memberUserId === profile.userId;
         });
         const connectedIds = Array.from(
           new Set(
@@ -102,7 +98,7 @@ export default function WorkPage() {
     return () => {
       alive = false;
     };
-  }, [profile?.customerId, profile?.userId, router]);
+  }, [profile?.userId, router]);
 
   const active = useMemo(
     () =>
