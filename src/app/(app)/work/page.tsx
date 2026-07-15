@@ -16,8 +16,10 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import {
   fetchAssignments,
+  fetchBusinessesByIds,
   fetchBusinessRequests,
   fetchMembershipsForIdentity,
+  toBusiness,
   toServiceRequest,
 } from "@/lib/services/appwriteServices";
 import { createWorkspaceHandoff } from "@/lib/services/authServices";
@@ -47,7 +49,7 @@ export default function WorkPage() {
           const memberUserId = (item as any).userId?.toString().trim();
           return memberUserId === profile.userId;
         });
-        const connectedIds = Array.from(
+        const membershipBusinessIds = Array.from(
           new Set(
             [
               ...exactMemberships.map(
@@ -56,6 +58,13 @@ export default function WorkPage() {
             ].filter(Boolean),
           ),
         );
+        const businessDocuments = await fetchBusinessesByIds(
+          membershipBusinessIds,
+        );
+        const connectedIds = businessDocuments
+          .map(toBusiness)
+          .filter((business) => business.status === "active")
+          .map((business) => business.$id);
         if (!connectedIds.length) {
           router.replace("/business");
           return;

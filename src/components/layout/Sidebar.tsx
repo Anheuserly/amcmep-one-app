@@ -20,7 +20,11 @@ import {
   X,
 } from "lucide-react";
 import type { UserRole } from "@/types";
-import { fetchMembershipsForIdentity } from "@/lib/services/appwriteServices";
+import {
+  fetchBusinessesByIds,
+  fetchMembershipsForIdentity,
+  toBusiness,
+} from "@/lib/services/appwriteServices";
 
 const navItems: Array<{
   label: string;
@@ -123,15 +127,23 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     fetchMembershipsForIdentity({
       userId: profile.userId,
     })
-      .then((memberships) => {
+      .then(async (memberships) => {
         if (!active) return;
 
-        const exactMembership = memberships.some((row) => {
-          const memberUserId = (row as any).userId?.toString().trim();
-          return memberUserId === profile.userId;
-        });
+        const businessIds = memberships
+          .filter((row) => {
+            const memberUserId = (row as any).userId?.toString().trim();
+            return memberUserId === profile.userId;
+          })
+          .map((row) => (row as any).businessId?.toString().trim())
+          .filter(Boolean);
+        const businesses = await fetchBusinessesByIds(businessIds);
+        if (!active) return;
+        const hasActiveBusiness = businesses
+          .map(toBusiness)
+          .some((business) => business.status === "active");
 
-        setHasBusinessAccess(exactMembership);
+        setHasBusinessAccess(hasActiveBusiness);
       })
       .catch(() => {
         if (active) setHasBusinessAccess(false);
