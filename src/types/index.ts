@@ -97,6 +97,7 @@ export interface ChatSession {
   businessName?: string;
   clientId?: string;
   clientName?: string;
+  clientPhone?: string;
   requestId?: string;
   amcId?: string;
   lastMessage?: string;

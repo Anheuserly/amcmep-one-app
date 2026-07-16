@@ -172,6 +172,7 @@ export function toChatSession(doc: any, currentUserId?: string): ChatSession {
     businessName,
     clientId: clientId || undefined,
     clientName: clientName || undefined,
+    clientPhone: readString(doc, "clientPhone") || readString(doc, "customerPhone") || undefined,
     requestId: readString(doc, "requestId") || readString(doc, "serviceRequestId") || undefined,
     amcId: readString(doc, "amcId") || undefined,
     lastMessage: readString(doc, "lastMessage"),
@@ -431,6 +432,15 @@ export async function fetchRequests({ customerId, userId, phone, limit = 100 }: 
   return Array.from(merged.values()).filter((doc) => isVisibleRequest(doc)).filter((doc) => readString(doc, "type") !== "amc").sort((a, b) => new Date(b.$createdAt).getTime() - new Date(a.$createdAt).getTime());
 }
 
+export async function fetchServiceRequestById(requestId: string) {
+  if (!requestId.trim()) return null;
+  try {
+    return await appwrite.databases.getDocument(DB_ID, COLLECTIONS.serviceRequests, requestId.trim());
+  } catch {
+    return null;
+  }
+}
+
 export async function createRequest(data: Record<string, any>) {
   return appwrite.databases.createDocument(DB_ID, COLLECTIONS.serviceRequests, ID.unique(), data);
 }
@@ -480,6 +490,11 @@ export async function fetchChatSessions({ customerId, userId, phone, limit = 100
       for (const row of rows.documents) { const raw = row.data?.businessIds; if (Array.isArray(raw)) { for (const v of raw) { const s = v?.toString().trim(); if (s) businessIds.add(s); } } }
     } catch {}
   }
+  const memberships = await fetchMembershipsForIdentity({ userId, customerId, phone }).catch(() => []);
+  for (const membership of memberships) {
+    const businessId = readString(membership, "businessId");
+    if (businessId) businessIds.add(businessId);
+  }
   for (const businessId of businessIds) await pullBy("businessId", businessId);
   return Array.from(merged.values()).filter((s) => {
     const chatType = readString(s, "chatType").toLowerCase();
@@ -487,7 +502,7 @@ export async function fetchChatSessions({ customerId, userId, phone, limit = 100
     if (chatType.includes("partner") && !chatType.includes("client") && !readString(s, "clientId")) return false;
     const counterpartyType = readString(s, "counterpartyType").toLowerCase();
     if (counterpartyType === "partner" && !readString(s, "clientId")) return false;
-    if (idCandidates.size > 0) { const sessionIds = new Set([readString(s, "clientId"), readString(s, "participantUserId"), readString(s, "initiatorUserId")].filter(Boolean)); const matchesId = [...sessionIds].some((id) => idCandidates.has(id)); const matchesPhone = cleanPhone && readString(s, "clientPhone") === cleanPhone; if (!matchesId && !matchesPhone) return false; }
+    if (idCandidates.size > 0) { const sessionIds = new Set([readString(s, "clientId"), readString(s, "participantUserId"), readString(s, "initiatorUserId")].filter(Boolean)); const matchesId = [...sessionIds].some((id) => idCandidates.has(id)); const matchesPhone = cleanPhone && readString(s, "clientPhone") === cleanPhone; const matchesBusiness = businessIds.has(readString(s, "businessId")); if (!matchesId && !matchesPhone && !matchesBusiness) return false; }
     else if (cleanPhone) { if (readString(s, "clientPhone") !== cleanPhone) return false; } else { return false; }
     return true;
   }).sort((a, b) => new Date(b.$updatedAt).getTime() - new Date(a.$updatedAt).getTime());
@@ -502,6 +517,13 @@ export async function sendChatMessage({ sessionId, messageText, senderId, sender
   const now = new Date().toISOString(); const text = messageText.trim(); if (!text) throw new Error("Write a message first.");
   const created = await appwrite.databases.createDocument(DB_ID, COLLECTIONS.chatMessages, ID.unique(), { sessionId, senderId, senderName, messageText: text, messageType: "text", mediaUrl: "", isRead: false, timestamp: now, replyToId: "", replyPreview: "", isDeleted: false, deletedBy: "", deletedAt: "" });
   try { await appwrite.databases.updateDocument(DB_ID, COLLECTIONS.chatSessions, sessionId, { lastMessage: text, lastMessageTime: now, updatedAt: now, isActive: true }); } catch {}
+  return created;
+}
+
+export async function sendChatCallHistory({ sessionId, value, senderId, senderName }: { sessionId: string; value: string; senderId: string; senderName: string }) {
+  const now = new Date().toISOString();
+  const created = await appwrite.databases.createDocument(DB_ID, COLLECTIONS.chatMessages, ID.unique(), { sessionId, senderId, senderName, messageText: value, messageType: "call", mediaUrl: "", isRead: false, timestamp: now, replyToId: "", replyPreview: "", isDeleted: false, deletedBy: "", deletedAt: "" });
+  try { await appwrite.databases.updateDocument(DB_ID, COLLECTIONS.chatSessions, sessionId, { lastMessage: value, lastMessageTime: now, updatedAt: now, isActive: true }); } catch {}
   return created;
 }
 

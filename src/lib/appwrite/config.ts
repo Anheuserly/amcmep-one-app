@@ -47,6 +47,12 @@ export const appwriteConfig = {
       process.env.NEXT_PUBLIC_APPWRITE_CHAT_SESSIONS_COLLECTION_ID ?? "chat_sessions",
     chatMessages:
       process.env.NEXT_PUBLIC_APPWRITE_CHAT_MESSAGES_COLLECTION_ID ?? "chat_messages",
+    callSessions:
+      process.env.NEXT_PUBLIC_APPWRITE_CALL_SESSIONS_COLLECTION_ID ?? "call_sessions",
+    callCandidates:
+      process.env.NEXT_PUBLIC_APPWRITE_CALL_CANDIDATES_COLLECTION_ID ?? "call_ice_candidates",
+    notificationInbox:
+      process.env.NEXT_PUBLIC_APPWRITE_NOTIFICATION_INBOX_COLLECTION_ID ?? "notification_inbox",
     amcRecords:
       process.env.NEXT_PUBLIC_APPWRITE_AMC_COLLECTION_ID ?? "amc_records",
     businesses:

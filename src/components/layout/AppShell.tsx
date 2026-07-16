@@ -6,6 +6,8 @@ import { Sidebar } from "./Sidebar";
 import { Navbar } from "./Navbar";
 import { RoleGuard } from "./RoleGuard";
 import { GuestAuthPrompt } from "./GuestAuthPrompt";
+import { BrowserAccessPrompt } from "./BrowserAccessPrompt";
+import { BrowserNotificationListener } from "./BrowserNotificationListener";
 import type { UserRole } from "@/types";
 
 interface AppShellProps {
@@ -49,6 +51,8 @@ export function AppShell({ children, allowedRoles }: AppShellProps) {
           </main>
         </div>
         <GuestAuthPrompt />
+        {activeRole !== "guest" && <BrowserAccessPrompt />}
+        {activeRole !== "guest" && <BrowserNotificationListener />}
       </div>
     </RoleGuard>
   );
