@@ -145,15 +145,21 @@ export function toChatSession(doc: any, currentUserId?: string): ChatSession {
     readString(doc, "partnerName") ||
     readString(doc, "clientName") ||
     "Conversation";
+  const clientId = readString(doc, "clientId") || readString(doc, "customerId");
+  const clientName =
+    readString(doc, "clientName") ||
+    readString(doc, "customerName") ||
+    readString(doc, "requestorName");
   const currentId = currentUserId ?? "";
   const otherId =
     participantIds.find((id) => id !== currentId) ||
     readString(doc, "businessId") ||
     readString(doc, "partnerUserId") ||
     readString(doc, "clientId");
-  const otherName =
-    participantNames.find((name) => name.toLowerCase() !== "you") ||
-    businessName;
+  const viewerIsClient = [clientId, readString(doc, "participantUserId")].includes(currentId);
+  const otherName = viewerIsClient
+    ? businessName
+    : clientName || participantNames.find((name) => name.toLowerCase() !== "you") || businessName;
   const chatType = readString(doc, "chatType") || readString(doc, "type") || "business";
 
   return {
@@ -164,6 +170,8 @@ export function toChatSession(doc: any, currentUserId?: string): ChatSession {
     participantAvatars: ["", readString(doc, "counterpartyAvatar")],
     businessId: readString(doc, "businessId") || undefined,
     businessName,
+    clientId: clientId || undefined,
+    clientName: clientName || undefined,
     requestId: readString(doc, "requestId") || readString(doc, "serviceRequestId") || undefined,
     amcId: readString(doc, "amcId") || undefined,
     lastMessage: readString(doc, "lastMessage"),
@@ -332,7 +340,7 @@ export function toBusiness(doc: any): Business {
     website: readString(doc, "website") || readString(doc, "websiteUrl"),
     logo: readString(doc, "logo") || readString(doc, "profileImage"),
     categories: categories.length ? categories : specialization,
-    servicesEnabled: servicesEnabledValue === undefined || servicesEnabledValue === null ? true : readBool(doc, "servicesEnabled"),
+    servicesEnabled: servicesEnabledValue === undefined || servicesEnabledValue === null ? (doc?.serviceEnabled === undefined ? true : readBool(doc, "serviceEnabled")) : readBool(doc, "servicesEnabled"),
     vendorEnabled: readBool(doc, "vendorEnabled"),
     status: (readString(doc, "status") || "active") as Business["status"],
     ownerId: readString(doc, "ownerId") || readString(doc, "user_id") || readString(doc, "ownerUserId"),
@@ -642,6 +650,47 @@ export async function fetchBusinesses({ ownerId, limit = 100 }: { ownerId?: stri
     await pull([Query.limit(limit)]);
   }
   return Array.from(merged.values()).filter((doc) => readBool(doc, "isActive") !== false);
+}
+
+export async function createBusiness({
+  clientDocumentId,
+  userId,
+  ownerName,
+  name,
+  businessType,
+  city,
+}: {
+  clientDocumentId: string;
+  userId: string;
+  ownerName: string;
+  name: string;
+  businessType: string;
+  city: string;
+}) {
+  const now = new Date().toISOString();
+  const businessId = ID.unique();
+  const normalizedType = businessType.toLowerCase();
+  const serviceEnabled = normalizedType.includes("service");
+  const vendorEnabled = normalizedType.includes("vendor");
+  const business = await appwrite.databases.createDocument(DB_ID, COLLECTIONS.businesses, businessId, {
+    name: name.trim(), ownerUserId: userId, businessType, city: city.trim(), status: "active",
+    serviceEnabled, vendorEnabled, receiveServiceRequests: serviceEnabled,
+    receiveProductRequirements: vendorEnabled, isVerified: false, createdAt: now,
+    updatedAt: now, isActive: true, isDeleted: false,
+  });
+  await appwrite.databases.createDocument(DB_ID, COLLECTIONS.businessMemberships, ID.unique(), {
+    businessId, userId, role: "owner", memberDocumentId: clientDocumentId,
+    memberName: ownerName, memberPhone: "", permissions: ["manage_business", "manage_members", "manage_requests", "manage_products"],
+    status: "active", isPrimary: true, onDuty: true, joinedAt: now, acceptedAt: now,
+  });
+  const profile = await appwrite.databases.getDocument(DB_ID, COLLECTIONS.clients, clientDocumentId);
+  const businessIds = Array.from(new Set([...readStringArray(profile, "businessIds"), businessId]));
+  const roles = Array.from(new Set([...readStringArray(profile, "roles"), "customer", "administrator", ...(vendorEnabled ? ["vendor"] : [])])).sort();
+  await appwrite.databases.updateDocument(DB_ID, COLLECTIONS.clients, clientDocumentId, {
+    businessIds, activeBusinessId: businessId, roles, activeRole: "administrator",
+    administratorEnabled: true, vendorEnabled, updatedAt: now,
+  });
+  return business;
 }
 
 export async function fetchBusinessMemberships(businessId: string) {

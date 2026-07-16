@@ -10,8 +10,8 @@ import {
   Building2,
   ClipboardList,
   Home,
-  Gift,
-  LogOut,
+  ChevronLeft,
+  ChevronRight,
   MessageSquare,
   Settings,
   ShieldCheck,
@@ -82,40 +82,25 @@ const navItems: Array<{
     roles: ["customer", "partner", "administrator"],
   },
   {
-    label: "Profile",
-    href: "/profile",
-    icon: UserCircle,
-    roles: ["customer", "partner", "administrator"],
-  },
-  {
-    label: "Rewards",
-    href: "/rewards",
-    icon: Gift,
-    roles: ["customer", "partner", "administrator"],
-  },
-  {
     label: "Activity",
     href: "/activity",
     icon: Bell,
     roles: ["customer", "partner", "administrator"],
   },
-  {
-    label: "Settings",
-    href: "/settings",
-    icon: Settings,
-    roles: ["customer", "partner", "administrator"],
-  },
+  { label: "Profile", href: "/profile", icon: UserCircle, roles: ["customer", "partner", "administrator"] },
 ];
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  collapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
 }
 
-export function Sidebar({ isOpen, onClose }: SidebarProps) {
+export function Sidebar({ isOpen, onClose, collapsed, onCollapsedChange }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { profile, activeRole, logout } = useAuth();
+  const { profile, activeRole } = useAuth();
   const [hasBusinessAccess, setHasBusinessAccess] = useState(false);
 
   useEffect(() => {
@@ -180,7 +165,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       )}
 
       <aside
-        className={`fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-72 border-r border-slate-200 bg-white transition-transform duration-200 ease-out lg:translate-x-0 ${
+        className={`fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-64 border-r border-slate-200 bg-white transition-[width,transform] duration-200 ease-out lg:translate-x-0 ${collapsed ? "lg:w-20" : "lg:w-64"} ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -195,29 +180,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </button>
           </div>
 
-          <div className="border-b border-slate-100 p-4">
-            <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
-              <div className="flex items-center gap-3">
-                <Avatar
-                  src={profile?.avatar}
-                  name={profile?.name || "User"}
-                  size="md"
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-slate-950">
-                    {profile?.name || "Guest User"}
-                  </p>
-                  {profile?.customerId && (
-                    <p className="mt-1 truncate text-[11px] font-medium text-slate-500">
-                      {profile.customerId}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
+          <div className="hidden justify-end border-b border-slate-100 p-2 lg:flex">
+            <button onClick={() => onCollapsedChange(!collapsed)} className="grid size-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100" aria-label={collapsed ? "Expand navigation" : "Collapse navigation"} title={collapsed ? "Expand navigation" : "Collapse navigation"}>
+              {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+            </button>
           </div>
 
-          <nav className="flex-1 overflow-y-auto px-3 py-4">
+          <nav className={`flex-1 overflow-y-auto py-3 ${collapsed ? "lg:px-2" : "px-3"}`}>
             <ul className="space-y-1">
               {filteredItems.map((item) => {
                 const active =
@@ -229,7 +198,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   <li key={item.href}>
                     <button
                       onClick={() => handleNav(item.href, item.external)}
-                      className={`group flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-all ${
+                      title={collapsed ? item.label : undefined}
+                      className={`group flex h-11 w-full items-center rounded-lg text-sm font-semibold transition-all ${collapsed ? "lg:justify-center lg:px-0" : "gap-3 px-3"} ${
                         active
                           ? "bg-blue-600 text-white shadow-sm shadow-blue-200"
                           : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
@@ -241,7 +211,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                       >
                         <item.icon className="h-[18px] w-[18px]" />
                       </span>
-                      <span className="truncate">{item.label}</span>
+                      <span className={`truncate ${collapsed ? "lg:hidden" : ""}`}>{item.label}</span>
                     </button>
                   </li>
                 );
@@ -265,14 +235,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </div>
           )}
 
-          <div className="border-t border-slate-100 p-3">
-            <button
-              onClick={logout}
-              className="flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
-            >
-              <LogOut className="h-5 w-5" />
-              Log out
+          <div className={`border-t border-slate-100 p-2 ${collapsed ? "lg:grid lg:gap-1" : "flex items-center gap-1"}`}>
+            <button onClick={() => handleNav("/profile")} className={`flex h-11 min-w-0 flex-1 items-center rounded-lg text-left hover:bg-slate-100 ${collapsed ? "lg:justify-center" : "gap-3 px-2"}`} title="Profile">
+              <Avatar src={profile?.avatar} name={profile?.name || "User"} size="sm" />
+              <span className={`min-w-0 flex-1 truncate text-sm font-bold text-slate-800 ${collapsed ? "lg:hidden" : ""}`}>{profile?.name || "Profile"}</span>
             </button>
+            <button onClick={() => handleNav("/settings")} className="grid size-11 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900" aria-label="Settings" title="Settings"><Settings className="size-5" /></button>
           </div>
         </div>
       </aside>

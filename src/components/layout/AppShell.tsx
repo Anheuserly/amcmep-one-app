@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Sidebar } from "./Sidebar";
 import { Navbar } from "./Navbar";
@@ -16,7 +16,17 @@ interface AppShellProps {
 export function AppShell({ children, allowedRoles }: AppShellProps) {
   const { isLoading, activeRole } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const showSidebar = activeRole !== "guest";
+
+  useEffect(() => {
+    setSidebarCollapsed(window.localStorage.getItem("amcmep-sidebar-collapsed") === "true");
+  }, []);
+
+  const setCollapsed = (collapsed: boolean) => {
+    setSidebarCollapsed(collapsed);
+    window.localStorage.setItem("amcmep-sidebar-collapsed", String(collapsed));
+  };
 
   if (isLoading) {
     return (
@@ -31,8 +41,8 @@ export function AppShell({ children, allowedRoles }: AppShellProps) {
       <div className="min-h-screen bg-surface">
         <Navbar onMenuClick={() => setSidebarOpen(true)} showMenu={showSidebar} />
         <div className="flex">
-          {showSidebar && <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />}
-          <main className={`min-h-[calc(100vh-4rem)] flex-1 pt-16 ${showSidebar ? "lg:ml-72" : ""}`}>
+          {showSidebar && <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} collapsed={sidebarCollapsed} onCollapsedChange={setCollapsed} />}
+          <main className={`min-h-[calc(100vh-4rem)] flex-1 pt-16 transition-[margin] duration-200 ${showSidebar ? (sidebarCollapsed ? "lg:ml-20" : "lg:ml-64") : ""}`}>
             <div className="p-4 lg:p-8 max-w-7xl mx-auto">
               {children}
             </div>

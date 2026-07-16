@@ -24,11 +24,14 @@ import {
   Copy,
   Check,
   UserCircle,
+  Gift,
+  Settings,
+  LogOut,
 } from "lucide-react";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { profile, refreshProfile } = useAuth();
+  const { profile, refreshProfile, logout } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [name, setName] = useState(profile?.name || "");
@@ -205,6 +208,14 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardContent className="grid gap-2 p-4 sm:grid-cols-2">
+          <button onClick={() => router.push("/rewards")} className="flex items-center gap-3 rounded-lg p-3 text-left hover:bg-slate-50"><Gift className="size-5 text-blue-600" /><span><strong className="block text-sm text-slate-900">Rewards</strong><small className="text-slate-500">Referrals and promotions</small></span></button>
+          <button onClick={() => router.push("/settings")} className="flex items-center gap-3 rounded-lg p-3 text-left hover:bg-slate-50"><Settings className="size-5 text-slate-600" /><span><strong className="block text-sm text-slate-900">Settings</strong><small className="text-slate-500">Account preferences</small></span></button>
+          <button onClick={async () => { await logout(); router.replace("/"); }} className="flex items-center gap-3 rounded-lg p-3 text-left text-red-600 hover:bg-red-50"><LogOut className="size-5" /><span><strong className="block text-sm">Sign out</strong><small className="text-red-500">End this browser session</small></span></button>
+        </CardContent>
+      </Card>
 
     </div>
   );

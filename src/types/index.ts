@@ -95,6 +95,8 @@ export interface ChatSession {
   participantAvatars: string[];
   businessId?: string;
   businessName?: string;
+  clientId?: string;
+  clientName?: string;
   requestId?: string;
   amcId?: string;
   lastMessage?: string;
@@ -109,7 +111,7 @@ export interface ChatMessage {
   senderId: string;
   senderName: string;
   senderAvatar?: string;
-  type: "text" | "image" | "audio" | "video" | "file";
+  type: "text" | "image" | "audio" | "video" | "file" | "call";
   content: string;
   mediaUrl?: string;
   createdAt: string;
