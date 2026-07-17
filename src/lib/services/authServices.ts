@@ -198,6 +198,15 @@ export function loadStoredProfileSession(): StoredProfileSession | null {
   }
 }
 
+export function storeProfileSession(profile: UserProfile) {
+  if (typeof window === "undefined") return;
+  const storedAt = new Date().toISOString();
+  localStorage.setItem(
+    WEB_PROFILE_SESSION_KEY,
+    JSON.stringify({ profile, storedAt, method: "qr" } satisfies StoredProfileSession),
+  );
+}
+
 export function clearStoredProfileSession() {
   if (typeof window !== "undefined") localStorage.removeItem(WEB_PROFILE_SESSION_KEY);
 }

@@ -9,6 +9,7 @@ import {
   ensureAnonymousSession,
   linkEmailClientProfile,
   loadStoredProfileSession,
+  storeProfileSession,
 } from "@/lib/services/authServices";
 import { fetchClientProfile, readString, readStringArray } from "@/lib/services/appwriteServices";
 import type { UserProfile, UserRole } from "@/types";
@@ -75,13 +76,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!user.email) {
         const stored = loadStoredProfileSession();
         if (stored?.profile) {
+          const fresh = await appwrite.databases
+            .getDocument(
+              process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID ?? "680b2cfb002805548743",
+              process.env.NEXT_PUBLIC_APPWRITE_USERDATA_COLLECTION_ID ??
+                process.env.NEXT_PUBLIC_CLIENTS_COLLECTION_ID ??
+                "680b30be0039f9a1d03e",
+              stored.profile.$id,
+            )
+            .catch(() => null);
+          const profile: UserProfile = fresh
+            ? {
+                ...stored.profile,
+                customerId: readString(fresh, "customerId") || stored.profile.customerId,
+                name: readString(fresh, "name") || stored.profile.name,
+                email: readString(fresh, "email") || stored.profile.email,
+                phone: readString(fresh, "phone") || stored.profile.phone,
+                avatar: readString(fresh, "profileImage") || stored.profile.avatar,
+                city: readString(fresh, "city"),
+                state: readString(fresh, "state"),
+                country: readString(fresh, "country") || stored.profile.country || "India",
+                roles: (readStringArray(fresh, "roles") as UserRole[]).length
+                  ? (readStringArray(fresh, "roles") as UserRole[])
+                  : stored.profile.roles,
+                activeRole:
+                  (readString(fresh, "activeRole") as UserRole) || stored.profile.activeRole,
+                businessIds: readStringArray(fresh, "businessIds"),
+                activeBusinessId:
+                  readString(fresh, "activeBusinessId") || stored.profile.activeBusinessId,
+                preferredLanguage:
+                  readString(fresh, "language") || stored.profile.preferredLanguage || "en",
+                updatedAt: readString(fresh, "updatedAt") || fresh.$updatedAt,
+              }
+            : stored.profile;
+          storeProfileSession(profile);
           setState((prev) => ({
             ...prev,
             user,
-            profile: stored.profile,
+            profile,
             isAuthenticated: true,
-            activeRole: stored.profile.activeRole,
-            roles: stored.profile.roles,
+            activeRole: profile.activeRole,
+            roles: profile.roles,
             isLoading: false,
           }));
           return;
@@ -237,6 +272,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const completeQrProfileSession = useCallback((profile: UserProfile) => {
+    storeProfileSession(profile);
     setState((prev) => ({
       ...prev,
       profile,

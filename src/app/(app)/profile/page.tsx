@@ -14,6 +14,7 @@ import {
   validatePublicUserId,
 } from "@/lib/services/appwriteServices";
 import toast from "react-hot-toast";
+import { storeProfileSession } from "@/lib/services/authServices";
 import {
   Mail,
   Phone,
@@ -70,18 +71,26 @@ export default function ProfilePage() {
         toast.error("This user ID is already taken");
         return;
       }
-      await updateClientProfile(profile.$id, {
+      const updated = await updateClientProfile(profile.$id, {
         name: name.trim(),
         phone: phone.trim(),
         city: city.trim(),
         customerId: publicIdCheck.value,
         updatedAt: new Date().toISOString(),
       });
+      storeProfileSession({
+        ...profile,
+        name: String(updated.name || name.trim()),
+        phone: String(updated.phone || phone.trim()),
+        city: String(updated.city || city.trim()),
+        customerId: String(updated.customerId || publicIdCheck.value),
+        updatedAt: String(updated.updatedAt || updated.$updatedAt),
+      });
       await refreshProfile();
       setIsEditing(false);
       toast.success("Profile updated");
-    } catch {
-      toast.error("Unable to update profile");
+    } catch (error: any) {
+      toast.error(error?.message || "Unable to update profile");
     } finally {
       setIsSaving(false);
     }
